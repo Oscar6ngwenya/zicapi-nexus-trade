@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -14,6 +14,8 @@ import {
   Users,
   FileText,
   Building,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,8 +28,19 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+  roles: string[];
+  children?: NavItem[];
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
   const location = useLocation();
+  const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({
+    settings: false
+  });
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -39,9 +52,16 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
     onLogout();
   };
   
+  const toggleExpand = (itemName: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [itemName]: !prev[itemName]
+    }));
+  };
+  
   // Define navigation items based on user role
-  const getNavItems = () => {
-    const commonItems = [
+  const getNavItems = (): NavItem[] => {
+    const commonItems: NavItem[] = [
       {
         name: "Dashboard",
         path: "/dashboard",
@@ -86,29 +106,40 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       },
     ];
     
-    // Admin-only items
-    const adminItems = [
-      {
-        name: "User Management",
-        path: "/users",
-        icon: <Users className="h-5 w-5" />,
-        roles: ["regulator"],
-      },
-      {
-        name: "Financial Institutions",
-        path: "/financial-institutions",
-        icon: <Building className="h-5 w-5" />,
-        roles: ["regulator"],
-      },
-      {
-        name: "Settings",
-        path: "/settings",
-        icon: <Settings className="h-5 w-5" />,
-        roles: ["regulator"],
-      },
-    ];
+    // Settings item with submenu for admin features
+    const settingsItem: NavItem = {
+      name: "Settings",
+      path: "#",
+      icon: <Settings className="h-5 w-5" />,
+      roles: ["regulator", "bank", "customs", "business"],
+      children: [
+        {
+          name: "User Management",
+          path: "/users",
+          icon: <Users className="h-5 w-5" />,
+          roles: ["regulator"],
+        },
+        {
+          name: "Financial Institutions",
+          path: "/financial-institutions",
+          icon: <Building className="h-5 w-5" />,
+          roles: ["regulator"],
+        },
+      ]
+    };
     
-    return [...commonItems, ...adminItems].filter(item => item.roles.includes(userRole));
+    return [...commonItems, settingsItem].filter(item => {
+      if (!item.roles.includes(userRole)) return false;
+      
+      // For items with children, filter the children based on roles
+      if (item.children) {
+        item.children = item.children.filter(child => child.roles.includes(userRole));
+        // If no children match the role, hide the parent item
+        return item.children.length > 0;
+      }
+      
+      return true;
+    });
   };
   
   // Get role name for display
@@ -120,6 +151,76 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       case "business": return "Importer/Exporter";
       default: return role;
     }
+  };
+
+  const renderNavItem = (item: NavItem, index: number) => {
+    // Item with children (submenu)
+    if (item.children && item.children.length > 0) {
+      const isExpanded = expandedItems[item.name.toLowerCase()];
+      
+      return (
+        <div key={index} className="flex flex-col gap-1">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-between",
+              location.pathname.startsWith(item.path) && item.path !== "#"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            )}
+            onClick={() => toggleExpand(item.name.toLowerCase())}
+          >
+            <div className="flex items-center">
+              {item.icon}
+              <span className="ml-2">{item.name}</span>
+            </div>
+            {isExpanded ? 
+              <ChevronDown className="h-4 w-4" /> : 
+              <ChevronRight className="h-4 w-4" />
+            }
+          </Button>
+          
+          {isExpanded && (
+            <div className="ml-6 flex flex-col gap-1 border-l border-sidebar-border pl-2">
+              {item.children.map((child, childIndex) => (
+                <Link to={child.path} key={`${index}-${childIndex}`}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start",
+                      isActive(child.path)
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    {child.icon}
+                    <span className="ml-2">{child.name}</span>
+                  </Button>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Regular menu item
+    return (
+      <Link to={item.path} key={index}>
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start",
+            isActive(item.path)
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          )}
+        >
+          {item.icon}
+          <span className="ml-2">{item.name}</span>
+        </Button>
+      </Link>
+    );
   };
 
   return (
@@ -143,22 +244,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       
       <ScrollArea className="flex-1 px-2">
         <nav className="flex flex-col gap-1 py-2">
-          {getNavItems().map((item, index) => (
-            <Link to={item.path} key={index}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start",
-                  isActive(item.path)
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                {item.icon}
-                <span className="ml-2">{item.name}</span>
-              </Button>
-            </Link>
-          ))}
+          {getNavItems().map((item, index) => renderNavItem(item, index))}
         </nav>
       </ScrollArea>
       
