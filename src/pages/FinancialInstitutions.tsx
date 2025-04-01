@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { BuildingBank, Plus, RefreshCw } from "lucide-react";
+import { Building, Plus, RefreshCw } from "lucide-react";
 import InstitutionTable from "@/components/institutions/InstitutionTable";
 
 const FinancialInstitutions: React.FC = () => {
@@ -187,7 +187,7 @@ const FinancialInstitutions: React.FC = () => {
                 </div>
                 
                 <Button type="submit" className="w-full">
-                  <BuildingBank className="h-4 w-4 mr-2" />
+                  <Building className="h-4 w-4 mr-2" />
                   Register Institution
                 </Button>
               </form>

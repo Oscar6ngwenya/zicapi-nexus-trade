@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FlaggedTransactions, { FlaggedTransaction } from "@/components/compliance/FlaggedTransactions";
-import { ComplianceChart } from "@/components/analytics/ComplianceChart";
+import ComplianceChart from "@/components/analytics/ComplianceChart";
 import { AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 
 const Compliance: React.FC = () => {
