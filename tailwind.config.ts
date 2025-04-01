@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,17 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom colors for ZiCapi
+				zicapi: {
+					primary: '#0f4c81',      // Deep navy blue
+					secondary: '#3a7ca5',    // Medium blue
+					accent: '#16a085',       // Teal
+					light: '#f5f5f7',        // Light background
+					dark: '#2c3e50',         // Dark navy
+					warning: '#f39c12',      // Warning/amber
+					danger: '#e74c3c',       // Danger/red
+					success: '#2ecc71',      // Success/green
 				}
 			},
 			borderRadius: {

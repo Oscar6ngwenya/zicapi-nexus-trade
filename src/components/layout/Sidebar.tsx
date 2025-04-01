@@ -1,0 +1,172 @@
+
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import {
+  BarChart4,
+  FileSpreadsheet,
+  Clock,
+  CheckSquare,
+  AlertCircle,
+  Settings,
+  LogOut,
+  Home,
+  Users,
+  FileText,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+
+interface SidebarProps {
+  userRole: string;
+  userName: string;
+  onLogout: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("zicapi-user");
+    toast.success("You have been logged out successfully");
+    onLogout();
+  };
+  
+  // Define navigation items based on user role
+  const getNavItems = () => {
+    const commonItems = [
+      {
+        name: "Dashboard",
+        path: "/dashboard",
+        icon: <Home className="h-5 w-5" />,
+        roles: ["regulator", "bank", "customs", "business"],
+      },
+      {
+        name: "Data Import",
+        path: "/data-import",
+        icon: <FileSpreadsheet className="h-5 w-5" />,
+        roles: ["bank", "customs", "business"],
+      },
+      {
+        name: "Extensions",
+        path: "/extensions",
+        icon: <Clock className="h-5 w-5" />,
+        roles: ["regulator", "bank", "customs", "business"],
+      },
+      {
+        name: "Acquittals",
+        path: "/acquittals",
+        icon: <CheckSquare className="h-5 w-5" />,
+        roles: ["regulator", "bank", "customs", "business"],
+      },
+      {
+        name: "Compliance",
+        path: "/compliance",
+        icon: <AlertCircle className="h-5 w-5" />,
+        roles: ["regulator", "customs"],
+      },
+      {
+        name: "Reports",
+        path: "/reports",
+        icon: <FileText className="h-5 w-5" />,
+        roles: ["regulator", "bank", "customs", "business"],
+      },
+      {
+        name: "Analytics",
+        path: "/analytics",
+        icon: <BarChart4 className="h-5 w-5" />,
+        roles: ["regulator", "bank", "customs"],
+      },
+    ];
+    
+    // Admin-only items
+    const adminItems = [
+      {
+        name: "User Management",
+        path: "/users",
+        icon: <Users className="h-5 w-5" />,
+        roles: ["regulator"],
+      },
+      {
+        name: "Settings",
+        path: "/settings",
+        icon: <Settings className="h-5 w-5" />,
+        roles: ["regulator"],
+      },
+    ];
+    
+    return [...commonItems, ...adminItems].filter(item => item.roles.includes(userRole));
+  };
+  
+  // Get role name for display
+  const getRoleName = (role: string) => {
+    switch (role) {
+      case "regulator": return "Regulatory Agency";
+      case "bank": return "Bank Official";
+      case "customs": return "Customs Official";
+      case "business": return "Importer/Exporter";
+      default: return role;
+    }
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-sidebar text-sidebar-foreground border-r">
+      <div className="p-4">
+        <h2 className="text-xl font-bold text-accent">ZiCapi Flight</h2>
+        <p className="text-sm font-medium text-secondary">Management System</p>
+      </div>
+      
+      <Separator className="my-2 bg-sidebar-border" />
+      
+      <div className="px-4 py-2">
+        <div className="flex flex-col space-y-1">
+          <p className="text-sm font-medium">Logged in as:</p>
+          <p className="text-base font-bold">{userName}</p>
+          <p className="text-xs text-muted-foreground">{getRoleName(userRole)}</p>
+        </div>
+      </div>
+      
+      <Separator className="my-2 bg-sidebar-border" />
+      
+      <ScrollArea className="flex-1 px-2">
+        <nav className="flex flex-col gap-1 py-2">
+          {getNavItems().map((item, index) => (
+            <Link to={item.path} key={index}>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  isActive(item.path)
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                )}
+              >
+                {item.icon}
+                <span className="ml-2">{item.name}</span>
+              </Button>
+            </Link>
+          ))}
+        </nav>
+      </ScrollArea>
+      
+      <div className="mt-auto p-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-900/20"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-5 w-5 mr-2" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
