@@ -90,6 +90,30 @@ const Compliance: React.FC = () => {
     }
   ];
 
+  // Mock data for the compliance chart
+  const chartData = {
+    barData: [
+      { name: "Jan", compliance: 92 },
+      { name: "Feb", compliance: 88 },
+      { name: "Mar", compliance: 91 },
+      { name: "Apr", compliance: 87 },
+      { name: "May", compliance: 94 },
+      { name: "Jun", compliance: 93 },
+    ],
+    pieData: [
+      { name: "Compliant", value: 94, color: "#4ade80" },
+      { name: "Non-Compliant", value: 6, color: "#f87171" },
+    ],
+    lineData: [
+      { name: "Jan", compliance: 92 },
+      { name: "Feb", compliance: 88 },
+      { name: "Mar", compliance: 91 },
+      { name: "Apr", compliance: 87 },
+      { name: "May", compliance: 94 },
+      { name: "Jun", compliance: 93 },
+    ],
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -135,7 +159,11 @@ const Compliance: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 h-[400px]">
-              <ComplianceChart />
+              <ComplianceChart 
+                data={chartData}
+                title="Compliance Performance"
+                description="Monthly compliance rates and trends"
+              />
             </CardContent>
           </Card>
         </TabsContent>
