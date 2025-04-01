@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import DataImport from "./pages/DataImport";
 import Extensions from "./pages/Extensions";
 import Acquittals from "./pages/Acquittals";
+import Compliance from "./pages/Compliance";
+import Users from "./pages/Users";
+import FinancialInstitutions from "./pages/FinancialInstitutions";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
 
@@ -31,10 +34,11 @@ const App: React.FC = () => {
                 <Route path="/data-import" element={<DataImport />} />
                 <Route path="/extensions" element={<Extensions />} />
                 <Route path="/acquittals" element={<Acquittals />} />
-                <Route path="/compliance" element={<Dashboard />} /> {/* Placeholder */}
+                <Route path="/compliance" element={<Compliance />} />
                 <Route path="/reports" element={<Dashboard />} /> {/* Placeholder */}
                 <Route path="/analytics" element={<Dashboard />} /> {/* Placeholder */}
-                <Route path="/users" element={<Dashboard />} /> {/* Placeholder */}
+                <Route path="/users" element={<Users />} />
+                <Route path="/financial-institutions" element={<FinancialInstitutions />} />
                 <Route path="/settings" element={<Dashboard />} /> {/* Placeholder */}
               </Route>
               

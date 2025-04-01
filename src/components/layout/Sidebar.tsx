@@ -13,6 +13,7 @@ import {
   Home,
   Users,
   FileText,
+  BuildingBank,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -91,6 +92,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
         name: "User Management",
         path: "/users",
         icon: <Users className="h-5 w-5" />,
+        roles: ["regulator"],
+      },
+      {
+        name: "Financial Institutions",
+        path: "/financial-institutions",
+        icon: <BuildingBank className="h-5 w-5" />,
         roles: ["regulator"],
       },
       {
