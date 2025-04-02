@@ -52,7 +52,7 @@ const CSVImport: React.FC<CSVImportProps> = ({
 
     // Simulate file processing
     setTimeout(() => {
-      // Mock successful import
+      // Mock successful import with sample quantity and unitPrice
       const mockImportedData = [
         {
           id: "1",
@@ -61,9 +61,12 @@ const CSVImport: React.FC<CSVImportProps> = ({
           type: "import",
           currency: "USD",
           amount: 25000,
+          quantity: 500,
+          unitPrice: 50,
           product: "Industrial machinery",
           status: "pending",
           bank: "First National Bank",
+          source: "imported"
         },
         {
           id: "2",
@@ -72,9 +75,12 @@ const CSVImport: React.FC<CSVImportProps> = ({
           type: "import",
           currency: "EUR",
           amount: 15000,
+          quantity: 100,
+          unitPrice: 150,
           product: "Computer equipment",
           status: "pending",
           bank: "Commerce Bank",
+          source: "imported"
         },
         {
           id: "3",
@@ -83,9 +89,12 @@ const CSVImport: React.FC<CSVImportProps> = ({
           type: "export",
           currency: "USD",
           amount: 35000,
+          quantity: 700,
+          unitPrice: 50,
           product: "Agricultural produce",
           status: "pending",
           bank: "First National Bank",
+          source: "imported"
         },
       ];
 

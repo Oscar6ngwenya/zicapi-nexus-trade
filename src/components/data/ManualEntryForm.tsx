@@ -119,6 +119,9 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
         product: entry.description,
         status: "pending",
         bank: entry.bank,
+        quantity: parseFloat(entry.quantity),
+        unitPrice: parseFloat(entry.unitPrice),
+        source: "manual" as const
       }));
 
       setIsUploading(false);

@@ -6,7 +6,8 @@ import ComplianceChart from "@/components/analytics/ComplianceChart";
 import { Transaction } from "@/components/dashboard/TransactionTable";
 import { ComplianceAnalysis } from "@/services/analyticsService";
 import { Badge } from "@/components/ui/badge";
-import { Check, AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Check, Clock, FileWarning } from "lucide-react";
+import DataDiscrepancyTable from "@/components/analytics/DataDiscrepancyTable";
 
 interface DataComplianceAnalyticsProps {
   analysis: ComplianceAnalysis;
@@ -70,6 +71,12 @@ const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analy
           <TabsList>
             <TabsTrigger value="charts">Charts</TabsTrigger>
             <TabsTrigger value="flagged">Flagged Transactions</TabsTrigger>
+            {analysis.dataDiscrepancies && analysis.dataDiscrepancies.length > 0 && (
+              <TabsTrigger value="discrepancies">
+                <FileWarning className="h-4 w-4 mr-2 text-red-500" />
+                Data Discrepancies
+              </TabsTrigger>
+            )}
           </TabsList>
           
           <TabsContent value="charts">
@@ -108,6 +115,11 @@ const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analy
                         <p className="text-sm">
                           <span className="font-medium">Product:</span> {transaction.product}
                         </p>
+                        {transaction.flagReason && (
+                          <p className="text-sm mt-2 p-2 bg-red-100 rounded text-red-800">
+                            <span className="font-medium">Reason:</span> {transaction.flagReason}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -115,6 +127,12 @@ const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analy
               )}
             </div>
           </TabsContent>
+          
+          {analysis.dataDiscrepancies && analysis.dataDiscrepancies.length > 0 && (
+            <TabsContent value="discrepancies">
+              <DataDiscrepancyTable discrepancies={analysis.dataDiscrepancies} />
+            </TabsContent>
+          )}
         </Tabs>
       </CardContent>
     </Card>
