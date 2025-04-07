@@ -15,7 +15,9 @@ import {
   FileText,
   Building,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  FileX,
+  Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -66,43 +68,49 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
         name: "Dashboard",
         path: "/dashboard",
         icon: <Home className="h-5 w-5" />,
-        roles: ["regulator", "bank", "customs", "business"],
+        roles: ["admin", "regulator", "bank", "customs", "business"],
       },
       {
         name: "Data Import",
         path: "/data-import",
         icon: <FileSpreadsheet className="h-5 w-5" />,
-        roles: ["bank", "customs", "business"],
+        roles: ["admin", "bank", "customs", "business"],
       },
       {
         name: "Extensions",
         path: "/extensions",
         icon: <Clock className="h-5 w-5" />,
-        roles: ["regulator", "bank", "customs", "business"],
+        roles: ["admin", "regulator", "bank", "customs", "business"],
       },
       {
         name: "Acquittals",
         path: "/acquittals",
         icon: <CheckSquare className="h-5 w-5" />,
-        roles: ["regulator", "bank", "customs", "business"],
+        roles: ["admin", "regulator", "bank", "customs", "business"],
       },
       {
         name: "Compliance",
         path: "/compliance",
         icon: <AlertCircle className="h-5 w-5" />,
-        roles: ["regulator", "customs"],
+        roles: ["admin", "regulator", "customs"],
       },
       {
         name: "Reports",
         path: "/reports",
         icon: <FileText className="h-5 w-5" />,
-        roles: ["regulator", "bank", "customs", "business"],
+        roles: ["admin", "regulator", "bank", "customs", "business"],
       },
       {
         name: "Analytics",
         path: "/analytics",
         icon: <BarChart4 className="h-5 w-5" />,
-        roles: ["regulator", "bank", "customs"],
+        roles: ["admin", "regulator", "bank", "customs"],
+      },
+      {
+        name: "Penalties & Interest",
+        path: "/penalties",
+        icon: <Calculator className="h-5 w-5" />,
+        roles: ["admin", "regulator", "customs", "business"],
       },
     ];
     
@@ -111,19 +119,19 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       name: "Settings",
       path: "#",
       icon: <Settings className="h-5 w-5" />,
-      roles: ["regulator", "bank", "customs", "business"],
+      roles: ["admin", "regulator", "bank", "customs", "business"],
       children: [
         {
           name: "User Management",
           path: "/users",
           icon: <Users className="h-5 w-5" />,
-          roles: ["regulator"],
+          roles: ["admin", "regulator"],
         },
         {
           name: "Financial Institutions",
           path: "/financial-institutions",
           icon: <Building className="h-5 w-5" />,
-          roles: ["regulator"],
+          roles: ["admin", "regulator"],
         },
       ]
     };
@@ -145,6 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
   // Get role name for display
   const getRoleName = (role: string) => {
     switch (role) {
+      case "admin": return "System Administrator";
       case "regulator": return "Regulatory Agency";
       case "bank": return "Bank Official";
       case "customs": return "Customs Official";

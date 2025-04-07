@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,22 +19,44 @@ interface LoginFormProps {
   }) => void;
 }
 
+// Define a proper user type
+interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: string;
+  name: string;
+}
+
 const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
   const navigate = useNavigate();
 
-  // Mock user data for demo purposes
-  const mockUsers = [
-    { id: "1", username: "admin", password: "admin123", role: "regulator", name: "Admin User" },
-    { id: "2", username: "bank", password: "bank123", role: "bank", name: "Bank Officer" },
-    { id: "3", username: "customs", password: "customs123", role: "customs", name: "Customs Officer" },
-    { id: "4", username: "importer", password: "importer123", role: "business", name: "Import Company" },
-    { id: "5", username: "exporter", password: "exporter123", role: "business", name: "Export Company" },
-  ];
+  // Load users from localStorage on component mount
+  useEffect(() => {
+    const storedUsers = localStorage.getItem("zicapi-users");
+    if (storedUsers) {
+      setUsers(JSON.parse(storedUsers));
+    } else {
+      // Initialize with default users if no stored users exist
+      const defaultUsers: User[] = [
+        { id: "1", username: "admin", password: "admin123", role: "admin", name: "System Administrator" },
+        { id: "2", username: "regulator", password: "regulator123", role: "regulator", name: "Regulator User" },
+        { id: "3", username: "bank", password: "bank123", role: "bank", name: "Bank Officer" },
+        { id: "4", username: "customs", password: "customs123", role: "customs", name: "Customs Officer" },
+        { id: "5", username: "importer", password: "importer123", role: "business", name: "Import Company" },
+        { id: "6", username: "exporter", password: "exporter123", role: "business", name: "Export Company" },
+      ];
+      
+      localStorage.setItem("zicapi-users", JSON.stringify(defaultUsers));
+      setUsers(defaultUsers);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +72,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
 
     // Simulate API call delay
     setTimeout(() => {
-      const user = mockUsers.find(
+      const user = users.find(
         (u) => u.username === username && u.password === password && u.role === userRole
       );
 
@@ -60,7 +82,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           description: `Welcome back, ${user.name}`,
         });
         
-        // Simulate setting auth in localStorage (in a real app, use secure storage)
+        // Store current user in localStorage
         localStorage.setItem("zicapi-user", JSON.stringify({
           id: user.id,
           username: user.username,
@@ -140,6 +162,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
                   <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="admin">System Administrator</SelectItem>
                   <SelectItem value="regulator">Regulatory Agency</SelectItem>
                   <SelectItem value="bank">Bank Official</SelectItem>
                   <SelectItem value="customs">Customs Official</SelectItem>
@@ -159,7 +182,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
       </CardContent>
       <CardFooter>
         <p className="text-center text-sm text-muted-foreground w-full">
-          For demo purposes, use username/password: admin/admin123, bank/bank123, etc.
+          For demo purposes, use username/password: admin/admin123, regulator/regulator123, bank/bank123, etc.
         </p>
       </CardFooter>
     </Card>

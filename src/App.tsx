@@ -12,6 +12,7 @@ import Extensions from "./pages/Extensions";
 import Acquittals from "./pages/Acquittals";
 import Compliance from "./pages/Compliance";
 import Users from "./pages/Users";
+import Penalties from "./pages/Penalties";
 import FinancialInstitutions from "./pages/FinancialInstitutions";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const App: React.FC = () => {
                 <Route path="/compliance" element={<Compliance />} />
                 <Route path="/reports" element={<Dashboard />} /> {/* Placeholder */}
                 <Route path="/analytics" element={<Dashboard />} /> {/* Placeholder */}
+                <Route path="/penalties" element={<Penalties />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/financial-institutions" element={<FinancialInstitutions />} />
                 <Route path="/settings" element={<Dashboard />} /> {/* Placeholder */}
