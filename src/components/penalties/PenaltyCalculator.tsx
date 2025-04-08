@@ -80,7 +80,7 @@ const PenaltyCalculator: React.FC = () => {
       id: "calc-" + Date.now(),
       date: formData.dueDate?.toISOString().split('T')[0] || "",
       entity: formData.entity,
-      type: "import",
+      type: "import" as const, // Fixed: Explicitly set as "import" literal type
       currency: formData.currency,
       amount: formData.originalAmount,
       product: "Calculated penalty",
