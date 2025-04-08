@@ -84,7 +84,7 @@ const PenaltyCalculator: React.FC = () => {
       currency: formData.currency,
       amount: formData.originalAmount,
       product: "Calculated penalty",
-      status: "pending",
+      status: "pending" as const, // Fixed: Explicitly set as "pending" literal type
       bank: "N/A",
       source: "manual" as const
     };
