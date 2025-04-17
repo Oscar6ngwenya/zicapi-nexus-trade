@@ -1,9 +1,9 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   BarChart4,
+  FileText,
   FileSpreadsheet,
   Clock,
   CheckSquare,
@@ -12,10 +12,6 @@ import {
   LogOut,
   Home,
   Users,
-  FileText,
-  Building,
-  ChevronDown,
-  ChevronRight,
   FileX,
   Calculator
 } from "lucide-react";
@@ -61,7 +57,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
     }));
   };
   
-  // Define navigation items based on user role
   const getNavItems = (): NavItem[] => {
     const commonItems: NavItem[] = [
       {
@@ -95,16 +90,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
         roles: ["admin", "regulator", "customs"],
       },
       {
-        name: "Reports",
+        name: "Reports & Analytics",
         path: "/reports",
-        icon: <FileText className="h-5 w-5" />,
-        roles: ["admin", "regulator", "bank", "customs", "business"],
-      },
-      {
-        name: "Analytics",
-        path: "/analytics",
         icon: <BarChart4 className="h-5 w-5" />,
-        roles: ["admin", "regulator", "bank", "customs"],
+        roles: ["admin", "regulator", "bank", "customs", "business"],
       },
       {
         name: "Penalties & Interest",
@@ -114,7 +103,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       },
     ];
     
-    // Settings item with submenu for admin features
     const settingsItem: NavItem = {
       name: "Settings",
       path: "#",
@@ -139,10 +127,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
     return [...commonItems, settingsItem].filter(item => {
       if (!item.roles.includes(userRole)) return false;
       
-      // For items with children, filter the children based on roles
       if (item.children) {
         item.children = item.children.filter(child => child.roles.includes(userRole));
-        // If no children match the role, hide the parent item
         return item.children.length > 0;
       }
       
@@ -150,7 +136,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
     });
   };
   
-  // Get role name for display
   const getRoleName = (role: string) => {
     switch (role) {
       case "admin": return "System Administrator";
@@ -163,7 +148,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
   };
 
   const renderNavItem = (item: NavItem, index: number) => {
-    // Item with children (submenu)
     if (item.children && item.children.length > 0) {
       const isExpanded = expandedItems[item.name.toLowerCase()];
       
@@ -213,7 +197,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       );
     }
     
-    // Regular menu item
     return (
       <Link to={item.path} key={index}>
         <Button

@@ -16,8 +16,8 @@ import Penalties from "./pages/Penalties";
 import FinancialInstitutions from "./pages/FinancialInstitutions";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
+import Reports from "./pages/Reports"; // New page for combined Reports & Analytics
 
-// Create a client
 const queryClient = new QueryClient();
 
 const App: React.FC = () => {
@@ -29,22 +29,18 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Login />} />
               
-              {/* Protected routes inside the MainLayout */}
               <Route element={<MainLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/data-import" element={<DataImport />} />
                 <Route path="/extensions" element={<Extensions />} />
                 <Route path="/acquittals" element={<Acquittals />} />
                 <Route path="/compliance" element={<Compliance />} />
-                <Route path="/reports" element={<Dashboard />} /> {/* Placeholder */}
-                <Route path="/analytics" element={<Dashboard />} /> {/* Placeholder */}
+                <Route path="/reports" element={<Reports />} /> {/* Updated route */}
                 <Route path="/penalties" element={<Penalties />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/financial-institutions" element={<FinancialInstitutions />} />
-                <Route path="/settings" element={<Dashboard />} /> {/* Placeholder */}
               </Route>
               
-              {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
