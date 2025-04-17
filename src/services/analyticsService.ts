@@ -1,4 +1,3 @@
-
 import { Transaction } from "@/components/dashboard/TransactionTable";
 import * as XLSX from "xlsx";
 
@@ -31,12 +30,13 @@ export interface ComplianceAnalysis {
 }
 
 export interface DataDiscrepancy {
-  importedTransaction: Transaction;
-  manualEntry: Transaction;
+  customsTransaction?: Transaction;
+  financialTransaction?: Transaction;
   discrepancyType: "price" | "quantity" | "total";
-  importedValue: number;
-  manualValue: number;
+  customsValue?: number;
+  financialValue?: number;
   percentageDifference: number;
+  potentialCapitalFlight?: boolean;
 }
 
 export interface PenaltyCalculation {
@@ -88,18 +88,34 @@ export const analyzeCompliance = (transactions: Transaction[]): ComplianceAnalys
     return copy;
   });
 
-  // Analyze for data discrepancies between imported and manual entries
+  // Analyze for data discrepancies between customs and financial institutions
   const dataDiscrepancies = compareTransactionData(analyzedTransactions);
   
   // Flag transactions with data discrepancies
   if (dataDiscrepancies.length > 0) {
     dataDiscrepancies.forEach(discrepancy => {
-      const transaction = analyzedTransactions.find(
-        t => t.id === discrepancy.importedTransaction.id
-      );
-      if (transaction) {
-        transaction.status = "flagged";
-        transaction.flagReason = `Data discrepancy: ${discrepancy.discrepancyType} values don't match (${discrepancy.percentageDifference.toFixed(2)}% difference)`;
+      // Flag both customs and financial transactions if they have discrepancies
+      if (discrepancy.customsTransaction) {
+        const transaction = analyzedTransactions.find(
+          t => t.id === discrepancy.customsTransaction?.id
+        );
+        if (transaction) {
+          transaction.status = "flagged";
+          transaction.flagReason = `Data discrepancy: ${discrepancy.discrepancyType} value lower than financial data by ${discrepancy.percentageDifference.toFixed(2)}%`;
+        }
+      }
+      
+      if (discrepancy.financialTransaction) {
+        const transaction = analyzedTransactions.find(
+          t => t.id === discrepancy.financialTransaction?.id
+        );
+        if (transaction) {
+          transaction.status = "flagged";
+          transaction.flagReason = `Data discrepancy: ${discrepancy.discrepancyType} value higher than customs data by ${discrepancy.percentageDifference.toFixed(2)}%`;
+          if (discrepancy.potentialCapitalFlight) {
+            transaction.flagReason += ". Potential capital flight detected.";
+          }
+        }
       }
     });
   }
@@ -180,81 +196,91 @@ export const analyzeCompliance = (transactions: Transaction[]): ComplianceAnalys
 };
 
 /**
- * Compare imported and manual entry transaction data to find discrepancies
+ * Compare customs and financial transaction data to find discrepancies
  */
-const compareTransactionData = (transactions: Transaction[]): DataDiscrepancy[] => {
+export const compareTransactionData = (transactions: Transaction[]): DataDiscrepancy[] => {
   const discrepancies: DataDiscrepancy[] = [];
   
-  // Group transactions by entity and similar dates for comparison
-  const transactionGroups = groupSimilarTransactions(transactions);
+  // Separate customs and financial data
+  const customsTransactions = transactions.filter(t => t.source === 'customs');
+  const financialTransactions = transactions.filter(t => t.source === 'financial');
   
-  // For each group, compare imported vs manual entries
-  Object.values(transactionGroups).forEach(group => {
-    const importedTransactions = group.filter(t => t.source === 'imported');
-    const manualTransactions = group.filter(t => t.source === 'manual');
+  // If we don't have both sources, return empty discrepancies
+  if (customsTransactions.length === 0 || financialTransactions.length === 0) {
+    return discrepancies;
+  }
+  
+  // For each customs transaction, find matching financial transactions
+  customsTransactions.forEach(customsTx => {
+    // Find matching financial transactions
+    const matchingFinancialTxs = financialTransactions.filter(financialTx => 
+      // Match by entity, date, product/description, currency
+      areRelatedTransactions(customsTx, financialTx)
+    );
     
-    // Compare each imported transaction with relevant manual entries
-    importedTransactions.forEach(importedTx => {
-      manualTransactions.forEach(manualTx => {
-        // If products/descriptions match, compare financial values
-        if (areRelatedTransactions(importedTx, manualTx)) {
-          // Compare amounts (assuming this represents total price)
-          const amountDifference = Math.abs(importedTx.amount - manualTx.amount);
-          const percentageDiff = importedTx.amount > 0 
-            ? (amountDifference / importedTx.amount) * 100
-            : 0;
-          
-          if (percentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
-            discrepancies.push({
-              importedTransaction: importedTx,
-              manualEntry: manualTx,
-              discrepancyType: "total",
-              importedValue: importedTx.amount,
-              manualValue: manualTx.amount,
-              percentageDifference: percentageDiff
-            });
-          }
-          
-          // If transaction has quantity and unit price data, compare those too
-          if (importedTx.quantity && manualTx.quantity && 
-              importedTx.unitPrice && manualTx.unitPrice) {
-            
-            // Check quantity
-            const quantityDiff = Math.abs(importedTx.quantity - manualTx.quantity);
-            const quantityPercentageDiff = importedTx.quantity > 0
-              ? (quantityDiff / importedTx.quantity) * 100
-              : 0;
-            
-            if (quantityPercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
-              discrepancies.push({
-                importedTransaction: importedTx,
-                manualEntry: manualTx,
-                discrepancyType: "quantity",
-                importedValue: importedTx.quantity,
-                manualValue: manualTx.quantity,
-                percentageDifference: quantityPercentageDiff
-              });
-            }
-            
-            // Check unit price
-            const priceDiff = Math.abs(importedTx.unitPrice - manualTx.unitPrice);
-            const pricePercentageDiff = importedTx.unitPrice > 0
-              ? (priceDiff / importedTx.unitPrice) * 100
-              : 0;
-            
-            if (pricePercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
-              discrepancies.push({
-                importedTransaction: importedTx,
-                manualEntry: manualTx,
-                discrepancyType: "price",
-                importedValue: importedTx.unitPrice,
-                manualValue: manualTx.unitPrice,
-                percentageDifference: pricePercentageDiff
-              });
-            }
-          }
+    // Compare with each matching financial transaction
+    matchingFinancialTxs.forEach(financialTx => {
+      // Compare total amounts
+      const amountDifference = Math.abs(customsTx.amount - financialTx.amount);
+      const percentageDiff = Math.min(customsTx.amount, financialTx.amount) > 0 
+        ? (amountDifference / Math.min(customsTx.amount, financialTx.amount)) * 100
+        : 0;
+      
+      // Check for potential capital flight (when financial amount > customs amount)
+      const potentialCapitalFlight = financialTx.amount > customsTx.amount;
+      
+      if (percentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
+        discrepancies.push({
+          customsTransaction: customsTx,
+          financialTransaction: financialTx,
+          discrepancyType: "total",
+          customsValue: customsTx.amount,
+          financialValue: financialTx.amount,
+          percentageDifference: percentageDiff,
+          potentialCapitalFlight
+        });
+      }
+      
+      // If transaction has quantity and unit price data, compare those too
+      if (customsTx.quantity && financialTx.quantity && 
+          customsTx.unitPrice && financialTx.unitPrice) {
+        
+        // Check quantity
+        const quantityDiff = Math.abs(customsTx.quantity - financialTx.quantity);
+        const quantityPercentageDiff = Math.min(customsTx.quantity, financialTx.quantity) > 0
+          ? (quantityDiff / Math.min(customsTx.quantity, financialTx.quantity)) * 100
+          : 0;
+        
+        if (quantityPercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
+          discrepancies.push({
+            customsTransaction: customsTx,
+            financialTransaction: financialTx,
+            discrepancyType: "quantity",
+            customsValue: customsTx.quantity,
+            financialValue: financialTx.quantity,
+            percentageDifference: quantityPercentageDiff,
+            potentialCapitalFlight: financialTx.quantity < customsTx.quantity // Under-reporting quantity
+          });
         }
-      });
+        
+        // Check unit price
+        const priceDiff = Math.abs(customsTx.unitPrice - financialTx.unitPrice);
+        const pricePercentageDiff = Math.min(customsTx.unitPrice, financialTx.unitPrice) > 0
+          ? (priceDiff / Math.min(customsTx.unitPrice, financialTx.unitPrice)) * 100
+          : 0;
+        
+        if (pricePercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
+          discrepancies.push({
+            customsTransaction: customsTx,
+            financialTransaction: financialTx,
+            discrepancyType: "price",
+            customsValue: customsTx.unitPrice,
+            financialValue: financialTx.unitPrice,
+            percentageDifference: pricePercentageDiff,
+            potentialCapitalFlight: financialTx.unitPrice > customsTx.unitPrice // Over-pricing
+          });
+        }
+      }
     });
   });
   
@@ -262,35 +288,31 @@ const compareTransactionData = (transactions: Transaction[]): DataDiscrepancy[] 
 };
 
 /**
- * Group transactions by entity and approximate date
- */
-const groupSimilarTransactions = (transactions: Transaction[]) => {
-  const groups: Record<string, Transaction[]> = {};
-  
-  transactions.forEach(transaction => {
-    // Create a key based on entity and date (simplified for this implementation)
-    const key = `${transaction.entity}-${transaction.date.substring(0, 7)}`; // Group by month
-    
-    if (!groups[key]) {
-      groups[key] = [];
-    }
-    
-    groups[key].push(transaction);
-  });
-  
-  return groups;
-};
-
-/**
  * Determine if two transactions are related enough to compare
  */
 const areRelatedTransactions = (tx1: Transaction, tx2: Transaction): boolean => {
-  // Related if same entity, currency and similar product/description
-  return tx1.entity === tx2.entity && 
-         tx1.currency === tx2.currency &&
-         (tx1.product === tx2.product || 
-          (tx1.product && tx2.product && 
-           (tx1.product.includes(tx2.product) || tx2.product.includes(tx1.product))));
+  // Consider transactions related if:
+  // 1. Same entity name
+  // 2. Same transaction date or close (within 3 days)
+  // 3. Same currency
+  // 4. Similar product/description
+  
+  // Check entity name
+  if (tx1.entity !== tx2.entity) return false;
+  
+  // Check currency
+  if (tx1.currency !== tx2.currency) return false;
+  
+  // Check product similarity
+  const productMatch = tx1.product === tx2.product || 
+    (tx1.product && tx2.product && 
+     (tx1.product.includes(tx2.product) || tx2.product.includes(tx1.product)));
+  
+  if (!productMatch) return false;
+  
+  // Check date proximity (simplistic implementation - in real app would use proper date comparison)
+  // For this demo we'll just check if the date strings match
+  return tx1.date === tx2.date;
 };
 
 /**

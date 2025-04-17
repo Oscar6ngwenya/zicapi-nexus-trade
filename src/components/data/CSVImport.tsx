@@ -10,12 +10,14 @@ interface CSVImportProps {
   onImportComplete: (data: any) => void;
   isUploading: boolean;
   setIsUploading: React.Dispatch<React.SetStateAction<boolean>>;
+  dataSource: "customs" | "financial";
 }
 
 const CSVImport: React.FC<CSVImportProps> = ({ 
   onImportComplete, 
   isUploading, 
-  setIsUploading 
+  setIsUploading,
+  dataSource
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -50,53 +52,108 @@ const CSVImport: React.FC<CSVImportProps> = ({
 
     setIsUploading(true);
 
-    // Simulate file processing
+    // Simulate file processing with source-specific data
     setTimeout(() => {
-      // Mock successful import with sample quantity and unitPrice
-      const mockImportedData = [
-        {
-          id: "1",
-          date: "2023-05-01",
-          entity: "Global Imports Ltd",
-          type: "import",
-          currency: "USD",
-          amount: 25000,
-          quantity: 500,
-          unitPrice: 50,
-          product: "Industrial machinery",
-          status: "pending",
-          bank: "First National Bank",
-          source: "imported"
-        },
-        {
-          id: "2",
-          date: "2023-05-05",
-          entity: "Tech Solutions Inc",
-          type: "import",
-          currency: "EUR",
-          amount: 15000,
-          quantity: 100,
-          unitPrice: 150,
-          product: "Computer equipment",
-          status: "pending",
-          bank: "Commerce Bank",
-          source: "imported"
-        },
-        {
-          id: "3",
-          date: "2023-05-10",
-          entity: "Agro Exports Co",
-          type: "export",
-          currency: "USD",
-          amount: 35000,
-          quantity: 700,
-          unitPrice: 50,
-          product: "Agricultural produce",
-          status: "pending",
-          bank: "First National Bank",
-          source: "imported"
-        },
-      ];
+      // Generate mock data based on source
+      let mockImportedData;
+      
+      if (dataSource === "customs") {
+        mockImportedData = [
+          {
+            id: `customs-1-${Date.now()}`,
+            date: "2023-05-01",
+            entity: "Global Imports Ltd",
+            type: "import",
+            currency: "USD",
+            amount: 24500, // Slightly different from financial data for comparison
+            quantity: 500,
+            unitPrice: 49,
+            product: "Industrial machinery",
+            status: "pending",
+            bank: "First National Bank",
+            source: "customs",
+            facilitator: "Customs Department"
+          },
+          {
+            id: `customs-2-${Date.now()}`,
+            date: "2023-05-05",
+            entity: "Tech Solutions Inc",
+            type: "import",
+            currency: "EUR",
+            amount: 14800, // Slightly different from financial data
+            quantity: 100,
+            unitPrice: 148,
+            product: "Computer equipment",
+            status: "pending",
+            bank: "Commerce Bank",
+            source: "customs",
+            facilitator: "Customs Department"
+          },
+          {
+            id: `customs-3-${Date.now()}`,
+            date: "2023-05-10",
+            entity: "Agro Exports Co",
+            type: "export",
+            currency: "USD",
+            amount: 35000,
+            quantity: 700,
+            unitPrice: 50,
+            product: "Agricultural produce",
+            status: "pending",
+            bank: "First National Bank",
+            source: "customs",
+            facilitator: "Customs Department"
+          },
+        ];
+      } else {
+        mockImportedData = [
+          {
+            id: `financial-1-${Date.now()}`,
+            date: "2023-05-01",
+            entity: "Global Imports Ltd",
+            type: "import",
+            currency: "USD",
+            amount: 25000, // Financial data shows higher amount
+            quantity: 500,
+            unitPrice: 50,
+            product: "Industrial machinery",
+            status: "pending",
+            bank: "First National Bank",
+            source: "financial",
+            facilitator: "First National Bank"
+          },
+          {
+            id: `financial-2-${Date.now()}`,
+            date: "2023-05-05",
+            entity: "Tech Solutions Inc",
+            type: "import",
+            currency: "EUR",
+            amount: 15000, // Financial data shows higher amount
+            quantity: 100,
+            unitPrice: 150,
+            product: "Computer equipment",
+            status: "pending",
+            bank: "Commerce Bank",
+            source: "financial",
+            facilitator: "Commerce Bank"
+          },
+          {
+            id: `financial-3-${Date.now()}`,
+            date: "2023-05-10",
+            entity: "Agro Exports Co",
+            type: "export",
+            currency: "USD",
+            amount: 35000, // Same amount as customs data
+            quantity: 700,
+            unitPrice: 50,
+            product: "Agricultural produce",
+            status: "pending",
+            bank: "First National Bank",
+            source: "financial",
+            facilitator: "First National Bank"
+          },
+        ];
+      }
 
       setIsUploading(false);
       toast.success("Data imported successfully", {
@@ -108,12 +165,14 @@ const CSVImport: React.FC<CSVImportProps> = ({
     }, 2000);
   };
 
+  const sourceLabel = dataSource === "customs" ? "Customs" : "Financial Institution";
+
   return (
     <>
       <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 bg-muted/50">
         <FileUp className="h-10 w-10 text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground mb-2">
-          Drag and drop your CSV file here, or click to browse
+          Upload {sourceLabel} data in CSV or Excel format
         </p>
         <Input
           type="file"
@@ -144,7 +203,7 @@ const CSVImport: React.FC<CSVImportProps> = ({
           onClick={handleCsvUpload} 
           disabled={!file || isUploading || hasError}
         >
-          {isUploading ? "Importing..." : "Import Data"}
+          {isUploading ? "Importing..." : `Import ${sourceLabel} Data`}
         </Button>
       </div>
     </>
