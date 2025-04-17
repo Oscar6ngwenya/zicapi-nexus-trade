@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,10 @@ import {
   Home,
   Users,
   FileX,
-  Calculator
+  Calculator,
+  Building,  // Added this import
+  ChevronDown,  // Added this import
+  ChevronRight  // Added this import
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
