@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DataImport from "./pages/DataImport";
@@ -16,7 +16,7 @@ import Penalties from "./pages/Penalties";
 import FinancialInstitutions from "./pages/FinancialInstitutions";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
-import Reports from "./pages/Reports"; // New page for combined Reports & Analytics
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -35,10 +35,26 @@ const App: React.FC = () => {
                 <Route path="/extensions" element={<Extensions />} />
                 <Route path="/acquittals" element={<Acquittals />} />
                 <Route path="/compliance" element={<Compliance />} />
-                <Route path="/reports" element={<Reports />} /> {/* Updated route */}
+                <Route path="/reports" element={<Reports />} />
                 <Route path="/penalties" element={<Penalties />} />
-                <Route path="/users" element={<Users />} />
-                <Route path="/financial-institutions" element={<FinancialInstitutions />} />
+                
+                {/* Restricted routes - admin only */}
+                <Route 
+                  path="/users" 
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <Users />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/financial-institutions" 
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <FinancialInstitutions />
+                    </ProtectedRoute>
+                  } 
+                />
               </Route>
               
               <Route path="*" element={<NotFound />} />
@@ -50,6 +66,23 @@ const App: React.FC = () => {
       </QueryClientProvider>
     </React.StrictMode>
   );
+};
+
+// Protected route component to check user role
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles: string[];
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+  const userString = localStorage.getItem("zicapi-user");
+  const user = userString ? JSON.parse(userString) : null;
+  
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 export default App;

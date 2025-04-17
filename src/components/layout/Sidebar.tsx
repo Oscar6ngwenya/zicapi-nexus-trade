@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   BarChart4,
@@ -15,9 +15,9 @@ import {
   Users,
   FileX,
   Calculator,
-  Building,  // Added this import
-  ChevronDown,  // Added this import
-  ChevronRight  // Added this import
+  Building,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,6 +40,7 @@ interface NavItem {
 
 const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({
     settings: false
   });
@@ -52,6 +53,11 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
     localStorage.removeItem("zicapi-user");
     toast.success("You have been logged out successfully");
     onLogout();
+  };
+  
+  const handleSystemNameClick = () => {
+    navigate("/dashboard");
+    toast.success("Dashboard refreshed");
   };
   
   const toggleExpand = (itemName: string) => {
@@ -111,19 +117,19 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
       name: "Settings",
       path: "#",
       icon: <Settings className="h-5 w-5" />,
-      roles: ["admin", "regulator", "bank", "customs", "business"],
+      roles: ["admin"],
       children: [
         {
           name: "User Management",
           path: "/users",
           icon: <Users className="h-5 w-5" />,
-          roles: ["admin", "regulator"],
+          roles: ["admin"],
         },
         {
           name: "Financial Institutions",
           path: "/financial-institutions",
           icon: <Building className="h-5 w-5" />,
-          roles: ["admin", "regulator"],
+          roles: ["admin"],
         },
       ]
     };
@@ -221,7 +227,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
 
   return (
     <div className="flex h-screen flex-col bg-sidebar text-sidebar-foreground border-r">
-      <div className="p-4">
+      <div className="p-4 cursor-pointer hover:bg-sidebar-accent/50" onClick={handleSystemNameClick}>
         <h2 className="text-xl font-bold text-accent">ZiCapi Flight</h2>
         <p className="text-sm font-medium text-secondary">Management System</p>
       </div>
