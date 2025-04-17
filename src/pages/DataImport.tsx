@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ImportForm from "@/components/data/ImportForm";
@@ -18,6 +19,8 @@ const DataImport: React.FC = () => {
   // Update comparison analysis whenever either data source changes
   useEffect(() => {
     if (customsData.length > 0 || financialData.length > 0) {
+      console.log("Analyzing data - Customs:", customsData.length, "Financial:", financialData.length);
+      
       // Merge data for comparison
       const allData = [...customsData, ...financialData];
       const analysis = analyzeCompliance(allData);
@@ -25,13 +28,16 @@ const DataImport: React.FC = () => {
       
       // Switch to analytics tab after import if we have enough data to compare
       if (customsData.length > 0 && financialData.length > 0) {
+        console.log("Both data sources available, showing comparison");
         setActiveTab("analytics");
         
-        // Show compliance summary toast
+        // Show detailed summary of the comparison
+        const discrepancies = analysis.dataDiscrepancies?.length || 0;
+        
         toast.info(
           `Data comparison complete: ${analysis.complianceRate.toFixed(1)}% match rate`,
           {
-            description: `${analysis.dataDiscrepancies?.length || 0} discrepancies found between customs and financial data`,
+            description: `${discrepancies} discrepancies found between customs and financial data`,
           }
         );
       }
@@ -39,6 +45,8 @@ const DataImport: React.FC = () => {
   }, [customsData, financialData]);
 
   const handleImportComplete = (data: Transaction[]) => {
+    console.log("Import complete, received data:", data);
+    
     // Determine which data source to update based on the source field
     if (data[0]?.source === "customs") {
       setCustomsData(prevData => [...data, ...prevData]);

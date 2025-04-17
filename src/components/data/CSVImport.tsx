@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FileUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { Transaction } from "@/components/dashboard/TransactionTable";
 
 interface CSVImportProps {
   onImportComplete: (data: any) => void;
@@ -41,8 +43,60 @@ const CSVImport: React.FC<CSVImportProps> = ({
     }
   };
 
+  // Parse CSV/Excel file and extract data
+  const parseFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const parsedData = XLSX.utils.sheet_to_json(worksheet);
+          
+          resolve(parsedData);
+        } catch (err) {
+          console.error("Error parsing file:", err);
+          reject(err);
+        }
+      };
+      
+      reader.onerror = (err) => {
+        console.error("Error reading file:", err);
+        reject(err);
+      };
+      
+      reader.readAsBinaryString(file);
+    });
+  };
+
+  // Convert parsed data to our Transaction format
+  const convertToTransactions = (parsedData: any[]): Transaction[] => {
+    return parsedData.map((row, index) => {
+      // Try to extract fields from the CSV data
+      // This mapping may need to be adjusted based on your actual CSV column headers
+      return {
+        id: `${dataSource}-${Date.now()}-${index}`,
+        date: row.Date || row.date || new Date().toISOString().split('T')[0],
+        entity: row.Entity || row.entity || row.ENTITY || row.Organization || row.company || "Unknown",
+        type: (row.Type || row.type || "import").toLowerCase(),
+        currency: row.Currency || row.currency || "USD",
+        amount: Number(row.Amount || row.amount || row.AMOUNT || row.Value || row.value || 0),
+        quantity: Number(row.Quantity || row.quantity || row.QUANTITY || 1),
+        unitPrice: Number(row.UnitPrice || row["Unit Price"] || row.unitPrice || row["Unit_Price"] || 0),
+        product: row.Product || row.product || row.PRODUCT || row.Description || row.description || "Unknown",
+        status: "pending",
+        bank: row.Bank || row.bank || row.Institution || row.institution || "Unknown",
+        source: dataSource,
+        facilitator: dataSource === "customs" ? "Customs Department" : row.Bank || row.bank || row.Institution || "Unknown Financial Institution"
+      };
+    });
+  };
+
   // Handle CSV file upload
-  const handleCsvUpload = () => {
+  const handleCsvUpload = async () => {
     if (!file) {
       toast.error("No file selected", {
         description: "Please select a file to upload",
@@ -52,117 +106,35 @@ const CSVImport: React.FC<CSVImportProps> = ({
 
     setIsUploading(true);
 
-    // Simulate file processing with source-specific data
-    setTimeout(() => {
-      // Generate mock data based on source
-      let mockImportedData;
+    try {
+      // Parse the file
+      const parsedData = await parseFile(file);
       
-      if (dataSource === "customs") {
-        mockImportedData = [
-          {
-            id: `customs-1-${Date.now()}`,
-            date: "2023-05-01",
-            entity: "Global Imports Ltd",
-            type: "import",
-            currency: "USD",
-            amount: 24500, // Slightly different from financial data for comparison
-            quantity: 500,
-            unitPrice: 49,
-            product: "Industrial machinery",
-            status: "pending",
-            bank: "First National Bank",
-            source: "customs",
-            facilitator: "Customs Department"
-          },
-          {
-            id: `customs-2-${Date.now()}`,
-            date: "2023-05-05",
-            entity: "Tech Solutions Inc",
-            type: "import",
-            currency: "EUR",
-            amount: 14800, // Slightly different from financial data
-            quantity: 100,
-            unitPrice: 148,
-            product: "Computer equipment",
-            status: "pending",
-            bank: "Commerce Bank",
-            source: "customs",
-            facilitator: "Customs Department"
-          },
-          {
-            id: `customs-3-${Date.now()}`,
-            date: "2023-05-10",
-            entity: "Agro Exports Co",
-            type: "export",
-            currency: "USD",
-            amount: 35000,
-            quantity: 700,
-            unitPrice: 50,
-            product: "Agricultural produce",
-            status: "pending",
-            bank: "First National Bank",
-            source: "customs",
-            facilitator: "Customs Department"
-          },
-        ];
-      } else {
-        mockImportedData = [
-          {
-            id: `financial-1-${Date.now()}`,
-            date: "2023-05-01",
-            entity: "Global Imports Ltd",
-            type: "import",
-            currency: "USD",
-            amount: 25000, // Financial data shows higher amount
-            quantity: 500,
-            unitPrice: 50,
-            product: "Industrial machinery",
-            status: "pending",
-            bank: "First National Bank",
-            source: "financial",
-            facilitator: "First National Bank"
-          },
-          {
-            id: `financial-2-${Date.now()}`,
-            date: "2023-05-05",
-            entity: "Tech Solutions Inc",
-            type: "import",
-            currency: "EUR",
-            amount: 15000, // Financial data shows higher amount
-            quantity: 100,
-            unitPrice: 150,
-            product: "Computer equipment",
-            status: "pending",
-            bank: "Commerce Bank",
-            source: "financial",
-            facilitator: "Commerce Bank"
-          },
-          {
-            id: `financial-3-${Date.now()}`,
-            date: "2023-05-10",
-            entity: "Agro Exports Co",
-            type: "export",
-            currency: "USD",
-            amount: 35000, // Same amount as customs data
-            quantity: 700,
-            unitPrice: 50,
-            product: "Agricultural produce",
-            status: "pending",
-            bank: "First National Bank",
-            source: "financial",
-            facilitator: "First National Bank"
-          },
-        ];
+      if (parsedData.length === 0) {
+        throw new Error("No data found in the file");
       }
-
-      setIsUploading(false);
+      
+      console.log("Parsed data:", parsedData);
+      
+      // Convert to our Transaction format
+      const transactions = convertToTransactions(parsedData);
+      
+      console.log("Converted transactions:", transactions);
+      
       toast.success("Data imported successfully", {
-        description: `${mockImportedData.length} records imported from ${file.name}`,
+        description: `${transactions.length} records imported from ${file.name}`,
       });
       
-      onImportComplete(mockImportedData);
+      onImportComplete(transactions);
       setFile(null);
-    }, 2000);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Error processing file", {
+        description: "Please ensure the file format is correct",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const sourceLabel = dataSource === "customs" ? "Customs" : "Financial Institution";
