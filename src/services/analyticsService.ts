@@ -1,3 +1,4 @@
+
 import { Transaction } from "@/components/dashboard/TransactionTable";
 import * as XLSX from "xlsx";
 
@@ -30,13 +31,16 @@ export interface ComplianceAnalysis {
 }
 
 export interface DataDiscrepancy {
-  customsTransaction?: Transaction;
-  financialTransaction?: Transaction;
+  importedTransaction: Transaction;
   discrepancyType: "price" | "quantity" | "total";
-  customsValue?: number;
-  financialValue?: number;
+  importedValue: number;
+  manualValue: number;
   percentageDifference: number;
   potentialCapitalFlight?: boolean;
+  customsTransaction?: Transaction;
+  financialTransaction?: Transaction;
+  customsValue?: number;
+  financialValue?: number;
 }
 
 export interface PenaltyCalculation {
@@ -231,9 +235,12 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
       
       if (percentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
         discrepancies.push({
+          importedTransaction: customsTx,
           customsTransaction: customsTx,
           financialTransaction: financialTx,
           discrepancyType: "total",
+          importedValue: customsTx.amount,
+          manualValue: financialTx.amount,
           customsValue: customsTx.amount,
           financialValue: financialTx.amount,
           percentageDifference: percentageDiff,
@@ -253,9 +260,12 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
         
         if (quantityPercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
           discrepancies.push({
+            importedTransaction: customsTx,
             customsTransaction: customsTx,
             financialTransaction: financialTx,
             discrepancyType: "quantity",
+            importedValue: customsTx.quantity,
+            manualValue: financialTx.quantity,
             customsValue: customsTx.quantity,
             financialValue: financialTx.quantity,
             percentageDifference: quantityPercentageDiff,
@@ -271,9 +281,12 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
         
         if (pricePercentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100) {
           discrepancies.push({
+            importedTransaction: customsTx,
             customsTransaction: customsTx,
             financialTransaction: financialTx,
             discrepancyType: "price",
+            importedValue: customsTx.unitPrice,
+            manualValue: financialTx.unitPrice,
             customsValue: customsTx.unitPrice,
             financialValue: financialTx.unitPrice,
             percentageDifference: pricePercentageDiff,

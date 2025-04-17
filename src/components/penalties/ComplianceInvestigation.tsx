@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,9 +69,25 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "First National Bank",
       product: "Computer Equipment",
       status: "flagged",
-      source: "imported"
+      source: "customs"
     },
-    manualEntry: {
+    discrepancyType: "total",
+    importedValue: 85000,
+    manualValue: 65000,
+    percentageDifference: 30.77,
+    customsTransaction: {
+      id: "imp-1",
+      date: "2023-05-15",
+      entity: "Global Imports Ltd",
+      type: "import",
+      currency: "USD",
+      amount: 85000,
+      bank: "First National Bank",
+      product: "Computer Equipment",
+      status: "flagged",
+      source: "customs"
+    },
+    financialTransaction: {
       id: "man-1",
       date: "2023-05-15",
       entity: "Global Imports Ltd",
@@ -82,12 +97,10 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "First National Bank",
       product: "Computer Equipment",
       status: "flagged",
-      source: "manual"
+      source: "financial"
     },
-    discrepancyType: "total",
-    importedValue: 85000,
-    manualValue: 65000,
-    percentageDifference: 30.77
+    customsValue: 85000,
+    financialValue: 65000
   },
   {
     importedTransaction: {
@@ -100,11 +113,29 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "Commerce Bank",
       product: "Luxury Goods",
       status: "flagged",
-      source: "imported",
+      source: "customs",
       quantity: 500,
       unitPrice: 240
     },
-    manualEntry: {
+    discrepancyType: "price",
+    importedValue: 240,
+    manualValue: 150,
+    percentageDifference: 60,
+    customsTransaction: {
+      id: "imp-2",
+      date: "2023-06-22",
+      entity: "International Trading LLC",
+      type: "import",
+      currency: "EUR",
+      amount: 120000,
+      bank: "Commerce Bank",
+      product: "Luxury Goods",
+      status: "flagged",
+      source: "customs",
+      quantity: 500,
+      unitPrice: 240
+    },
+    financialTransaction: {
       id: "man-2",
       date: "2023-06-22",
       entity: "International Trading LLC",
@@ -114,14 +145,12 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "Commerce Bank",
       product: "Luxury Goods",
       status: "flagged",
-      source: "manual",
+      source: "financial",
       quantity: 500,
       unitPrice: 150
     },
-    discrepancyType: "price",
-    importedValue: 240,
-    manualValue: 150,
-    percentageDifference: 60
+    customsValue: 240,
+    financialValue: 150
   },
   {
     importedTransaction: {
@@ -134,11 +163,29 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "First National Bank",
       product: "Electronic Components",
       status: "flagged",
-      source: "imported",
+      source: "customs",
       quantity: 2000,
       unitPrice: 47.5
     },
-    manualEntry: {
+    discrepancyType: "quantity",
+    importedValue: 2000,
+    manualValue: 5000,
+    percentageDifference: 150,
+    customsTransaction: {
+      id: "imp-3",
+      date: "2023-07-05",
+      entity: "International Trading LLC",
+      type: "export",
+      currency: "USD",
+      amount: 95000,
+      bank: "First National Bank",
+      product: "Electronic Components",
+      status: "flagged",
+      source: "customs",
+      quantity: 2000,
+      unitPrice: 47.5
+    },
+    financialTransaction: {
       id: "man-3",
       date: "2023-07-05",
       entity: "International Trading LLC",
@@ -148,14 +195,12 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       bank: "First National Bank",
       product: "Electronic Components",
       status: "flagged",
-      source: "manual",
+      source: "financial",
       quantity: 5000,
       unitPrice: 19
     },
-    discrepancyType: "quantity",
-    importedValue: 2000,
-    manualValue: 5000,
-    percentageDifference: 150
+    customsValue: 2000,
+    financialValue: 5000
   }
 ];
 

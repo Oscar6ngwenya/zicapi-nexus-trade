@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ImportForm from "@/components/data/ImportForm";
@@ -8,7 +7,7 @@ import { analyzeCompliance, compareTransactionData } from "@/services/analyticsS
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Compare } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 const DataImport: React.FC = () => {
   const [customsData, setCustomsData] = useState<Transaction[]>([]);
