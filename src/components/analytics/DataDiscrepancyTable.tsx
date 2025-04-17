@@ -55,18 +55,18 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
 
     // Format data for export
     const exportData = discrepancies.map((d) => ({
-      Date: d.importedTransaction.date,
-      Entity: d.importedTransaction.entity,
-      Product: d.importedTransaction.product,
+      Date: d.customsTransaction?.date || d.financialTransaction?.date,
+      Entity: d.customsTransaction?.entity || d.financialTransaction?.entity,
+      Product: d.customsTransaction?.product || d.financialTransaction?.product,
       "Discrepancy Type": getDiscrepancyTypeLabel(d.discrepancyType),
-      "Imported Value": d.discrepancyType === "quantity" 
-        ? d.importedValue 
-        : formatCurrency(d.importedValue, d.importedTransaction.currency).replace(/[^0-9.-]+/g, ""),
-      "Manual Value": d.discrepancyType === "quantity"
-        ? d.manualValue
-        : formatCurrency(d.manualValue, d.importedTransaction.currency).replace(/[^0-9.-]+/g, ""),
+      "Customs Value": d.discrepancyType === "quantity" 
+        ? d.customsValue 
+        : formatCurrency(d.customsValue || 0, d.customsTransaction?.currency || "USD").replace(/[^0-9.-]+/g, ""),
+      "Financial Value": d.discrepancyType === "quantity"
+        ? d.financialValue
+        : formatCurrency(d.financialValue || 0, d.financialTransaction?.currency || "USD").replace(/[^0-9.-]+/g, ""),
       "% Difference": `${d.percentageDifference.toFixed(2)}%`,
-      "Currency": d.importedTransaction.currency,
+      "Currency": d.customsTransaction?.currency || d.financialTransaction?.currency,
       "Recommended Action": d.percentageDifference > 10 
         ? "Immediate Investigation Required" 
         : "Verification Needed",
@@ -97,7 +97,7 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
         <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-800 rounded-md border border-amber-200">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
           <p>
-            The following discrepancies were found between imported data and manual entries. 
+            The following discrepancies were found between customs and financial data. 
             These inconsistencies require investigation.
           </p>
         </div>
@@ -122,8 +122,8 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
               <TableHead>Entity</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Discrepancy Type</TableHead>
-              <TableHead className="text-right">Imported Value</TableHead>
-              <TableHead className="text-right">Manual Value</TableHead>
+              <TableHead className="text-right">Customs Value</TableHead>
+              <TableHead className="text-right">Financial Value</TableHead>
               <TableHead className="text-right">% Difference</TableHead>
               <TableHead>Product</TableHead>
             </TableRow>
@@ -137,12 +137,17 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
                 return "hover:bg-red-50";
               };
               
+              const entity = discrepancy.customsTransaction?.entity || discrepancy.financialTransaction?.entity || "Unknown";
+              const date = discrepancy.customsTransaction?.date || discrepancy.financialTransaction?.date || "Unknown";
+              const product = discrepancy.customsTransaction?.product || discrepancy.financialTransaction?.product || "Unknown";
+              const currency = discrepancy.customsTransaction?.currency || discrepancy.financialTransaction?.currency || "USD";
+              
               return (
                 <TableRow key={index} className={getSeverityClass()}>
                   <TableCell className="font-medium">
-                    {discrepancy.importedTransaction.entity}
+                    {entity}
                   </TableCell>
-                  <TableCell>{discrepancy.importedTransaction.date}</TableCell>
+                  <TableCell>{date}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-red-50 text-red-800">
                       {getDiscrepancyTypeLabel(discrepancy.discrepancyType)}
@@ -150,24 +155,24 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
                   </TableCell>
                   <TableCell className="text-right">
                     {discrepancy.discrepancyType === "quantity" 
-                      ? discrepancy.importedValue.toLocaleString()
+                      ? (discrepancy.customsValue || 0).toLocaleString()
                       : formatCurrency(
-                          discrepancy.importedValue,
-                          discrepancy.importedTransaction.currency
+                          discrepancy.customsValue || 0,
+                          currency
                         )}
                   </TableCell>
                   <TableCell className="text-right">
                     {discrepancy.discrepancyType === "quantity"
-                      ? discrepancy.manualValue.toLocaleString()
+                      ? (discrepancy.financialValue || 0).toLocaleString()
                       : formatCurrency(
-                          discrepancy.manualValue,
-                          discrepancy.importedTransaction.currency
+                          discrepancy.financialValue || 0,
+                          currency
                         )}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-red-700">
                     {discrepancy.percentageDifference.toFixed(2)}%
                   </TableCell>
-                  <TableCell>{discrepancy.importedTransaction.product}</TableCell>
+                  <TableCell>{product}</TableCell>
                 </TableRow>
               );
             })}

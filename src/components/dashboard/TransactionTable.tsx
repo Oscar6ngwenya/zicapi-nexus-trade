@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Table,
@@ -27,9 +26,10 @@ export interface Transaction {
   status?: "compliant" | "pending" | "flagged";
   bank: string;
   flagReason?: string;
-  source?: "imported" | "manual";
+  source?: "imported" | "manual" | "customs" | "financial";
   quantity?: number;
   unitPrice?: number;
+  facilitator?: string;
 }
 
 interface TransactionTableProps {
@@ -45,7 +45,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   title,
   onViewDetails,
   displayFlag = false,
-  userRole = "investigator", // Default role
+  userRole = "investigator",
 }) => {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -59,7 +59,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const handleExportToExcel = () => {
-    // Filter only flagged transactions if needed
     const dataToExport = displayFlag 
       ? transactions.filter(t => t.status === "flagged") 
       : transactions;
@@ -74,11 +73,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
     
-    // Generate filename with date
     const dateStr = new Date().toISOString().split("T")[0];
     const filename = `${displayFlag ? "flagged_" : ""}transactions_${dateStr}.xlsx`;
     
-    // Create and download the Excel file
     XLSX.writeFile(workbook, filename);
     
     toast.success("Export successful", {

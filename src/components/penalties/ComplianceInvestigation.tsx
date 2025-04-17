@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import * as XLSX from "xlsx";
 import { DataDiscrepancy } from "@/services/analyticsService";
+import { Transaction } from "@/components/dashboard/TransactionTable";
 
 // Mock data for company profiles
 const MOCK_COMPANIES = [
@@ -59,22 +60,6 @@ const MOCK_COMPANIES = [
 // Mock discrepancies data
 const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
   {
-    importedTransaction: {
-      id: "imp-1",
-      date: "2023-05-15",
-      entity: "Global Imports Ltd",
-      type: "import",
-      currency: "USD",
-      amount: 85000,
-      bank: "First National Bank",
-      product: "Computer Equipment",
-      status: "flagged",
-      source: "customs"
-    },
-    discrepancyType: "total",
-    importedValue: 85000,
-    manualValue: 65000,
-    percentageDifference: 30.77,
     customsTransaction: {
       id: "imp-1",
       date: "2023-05-15",
@@ -99,28 +84,12 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       status: "flagged",
       source: "financial"
     },
+    discrepancyType: "total",
     customsValue: 85000,
-    financialValue: 65000
+    financialValue: 65000,
+    percentageDifference: 30.77
   },
   {
-    importedTransaction: {
-      id: "imp-2",
-      date: "2023-06-22",
-      entity: "International Trading LLC",
-      type: "import",
-      currency: "EUR",
-      amount: 120000,
-      bank: "Commerce Bank",
-      product: "Luxury Goods",
-      status: "flagged",
-      source: "customs",
-      quantity: 500,
-      unitPrice: 240
-    },
-    discrepancyType: "price",
-    importedValue: 240,
-    manualValue: 150,
-    percentageDifference: 60,
     customsTransaction: {
       id: "imp-2",
       date: "2023-06-22",
@@ -149,28 +118,12 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       quantity: 500,
       unitPrice: 150
     },
+    discrepancyType: "price",
     customsValue: 240,
-    financialValue: 150
+    financialValue: 150,
+    percentageDifference: 60
   },
   {
-    importedTransaction: {
-      id: "imp-3",
-      date: "2023-07-05",
-      entity: "International Trading LLC",
-      type: "export",
-      currency: "USD",
-      amount: 95000,
-      bank: "First National Bank",
-      product: "Electronic Components",
-      status: "flagged",
-      source: "customs",
-      quantity: 2000,
-      unitPrice: 47.5
-    },
-    discrepancyType: "quantity",
-    importedValue: 2000,
-    manualValue: 5000,
-    percentageDifference: 150,
     customsTransaction: {
       id: "imp-3",
       date: "2023-07-05",
@@ -199,8 +152,10 @@ const MOCK_DISCREPANCIES: DataDiscrepancy[] = [
       quantity: 5000,
       unitPrice: 19
     },
+    discrepancyType: "quantity",
     customsValue: 2000,
-    financialValue: 5000
+    financialValue: 5000,
+    percentageDifference: 150
   }
 ];
 
@@ -224,7 +179,7 @@ const ComplianceInvestigation: React.FC = () => {
       setSelectedCompany(found);
       // Filter discrepancies for this company
       const relevantDiscrepancies = MOCK_DISCREPANCIES.filter(
-        d => d.importedTransaction.entity === found.name
+        d => (d.customsTransaction?.entity === found.name || d.financialTransaction?.entity === found.name)
       );
       setCompanyDiscrepancies(relevantDiscrepancies);
       toast.success(`Found company: ${found.name}`);
@@ -253,19 +208,26 @@ const ComplianceInvestigation: React.FC = () => {
     };
     
     // Prepare discrepancy data
-    const discrepancyData = companyDiscrepancies.map(d => ({
-      "Date": d.importedTransaction.date,
-      "Product": d.importedTransaction.product,
-      "Discrepancy Type": d.discrepancyType.charAt(0).toUpperCase() + d.discrepancyType.slice(1),
-      "Imported Value": d.discrepancyType === "quantity" 
-        ? d.importedValue 
-        : new Intl.NumberFormat("en-US", { style: "currency", currency: d.importedTransaction.currency }).format(d.importedValue),
-      "Manual Value": d.discrepancyType === "quantity"
-        ? d.manualValue
-        : new Intl.NumberFormat("en-US", { style: "currency", currency: d.importedTransaction.currency }).format(d.manualValue),
-      "Difference %": `${d.percentageDifference.toFixed(2)}%`,
-      "Risk Assessment": d.percentageDifference > 50 ? "HIGH RISK" : d.percentageDifference > 20 ? "MEDIUM RISK" : "LOW RISK"
-    }));
+    const discrepancyData = companyDiscrepancies.map(d => {
+      const entity = d.customsTransaction?.entity || d.financialTransaction?.entity || "";
+      const date = d.customsTransaction?.date || d.financialTransaction?.date || "";
+      const product = d.customsTransaction?.product || d.financialTransaction?.product || "";
+      const currency = d.customsTransaction?.currency || d.financialTransaction?.currency || "USD";
+      
+      return {
+        "Date": date,
+        "Product": product,
+        "Discrepancy Type": d.discrepancyType.charAt(0).toUpperCase() + d.discrepancyType.slice(1),
+        "Customs Value": d.discrepancyType === "quantity" 
+          ? d.customsValue 
+          : new Intl.NumberFormat("en-US", { style: "currency", currency }).format(d.customsValue || 0),
+        "Financial Value": d.discrepancyType === "quantity"
+          ? d.financialValue
+          : new Intl.NumberFormat("en-US", { style: "currency", currency }).format(d.financialValue || 0),
+        "Difference %": `${d.percentageDifference.toFixed(2)}%`,
+        "Risk Assessment": d.percentageDifference > 50 ? "HIGH RISK" : d.percentageDifference > 20 ? "MEDIUM RISK" : "LOW RISK"
+      };
+    });
 
     // Prepare compliance history data
     const complianceHistoryData = selectedCompany.complianceHistory.map((h: any) => ({
@@ -440,30 +402,30 @@ const ComplianceInvestigation: React.FC = () => {
                           d.percentageDifference > 50 ? "bg-red-50" : 
                           d.percentageDifference > 20 ? "bg-amber-50" : ""
                         }>
-                          <TableCell>{d.importedTransaction.date}</TableCell>
+                          <TableCell>{d.customsTransaction?.date || d.financialTransaction?.date}</TableCell>
                           <TableCell>
                             <Badge variant="outline">
                               {d.discrepancyType === "total" ? "Amount" : 
                                d.discrepancyType === "price" ? "Unit Price" : "Quantity"}
                             </Badge>
                           </TableCell>
-                          <TableCell>{d.importedTransaction.product}</TableCell>
+                          <TableCell>{d.customsTransaction?.product || d.financialTransaction?.product}</TableCell>
                           <TableCell className="text-right">
                             {d.discrepancyType === "quantity" 
-                              ? d.importedValue.toLocaleString()
+                              ? (d.customsValue || 0).toLocaleString()
                               : new Intl.NumberFormat("en-US", { 
                                   style: "currency", 
-                                  currency: d.importedTransaction.currency 
-                                }).format(d.importedValue)
+                                  currency: d.customsTransaction?.currency || d.financialTransaction?.currency || "USD"
+                                }).format(d.customsValue || 0)
                             }
                           </TableCell>
                           <TableCell className="text-right">
                             {d.discrepancyType === "quantity" 
-                              ? d.manualValue.toLocaleString()
+                              ? (d.financialValue || 0).toLocaleString()
                               : new Intl.NumberFormat("en-US", { 
                                   style: "currency", 
-                                  currency: d.importedTransaction.currency 
-                                }).format(d.manualValue)
+                                  currency: d.customsTransaction?.currency || d.financialTransaction?.currency || "USD"
+                                }).format(d.financialValue || 0)
                             }
                           </TableCell>
                           <TableCell className="text-right font-semibold text-red-700">
