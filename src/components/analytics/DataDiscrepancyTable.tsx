@@ -32,6 +32,22 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
     }).format(amount);
   };
 
+  // Function to format dates for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "Unknown";
+    
+    // Check if it's a valid date string
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    // Format date for display
+    return date.toLocaleDateString("en-US", { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
   // Function to get discrepancy type label
   const getDiscrepancyTypeLabel = (type: string) => {
     switch (type) {
@@ -147,7 +163,7 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
                   <TableCell className="font-medium">
                     {entity}
                   </TableCell>
-                  <TableCell>{date}</TableCell>
+                  <TableCell>{formatDate(date)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-red-50 text-red-800">
                       {getDiscrepancyTypeLabel(discrepancy.discrepancyType)}

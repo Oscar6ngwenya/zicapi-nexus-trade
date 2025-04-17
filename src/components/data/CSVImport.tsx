@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +55,20 @@ const CSVImport: React.FC<CSVImportProps> = ({
           const worksheet = workbook.Sheets[sheetName];
           const parsedData = XLSX.utils.sheet_to_json(worksheet);
           
-          resolve(parsedData);
+          // Handle Excel date conversions
+          const processedData = parsedData.map(row => {
+            const processed = { ...row };
+            
+            // Check if Date is an Excel date and convert it
+            if (processed.Date && typeof processed.Date === 'number') {
+              const excelDate = XLSX.SSF.parse_date_code(processed.Date);
+              processed.Date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+            }
+            
+            return processed;
+          });
+          
+          resolve(processedData);
         } catch (err) {
           console.error("Error parsing file:", err);
           reject(err);
@@ -75,17 +87,49 @@ const CSVImport: React.FC<CSVImportProps> = ({
   // Convert parsed data to our Transaction format
   const convertToTransactions = (parsedData: any[]): Transaction[] => {
     return parsedData.map((row, index) => {
-      // Try to extract fields from the CSV data
-      // This mapping may need to be adjusted based on your actual CSV column headers
+      // Find the correct value column based on the data source
+      let transactionAmount = 0;
+      if (dataSource === "customs" && (row["Customs Value"] !== undefined || row.CustomsValue !== undefined)) {
+        transactionAmount = Number(row["Customs Value"] || row.CustomsValue || 0);
+      } else if (dataSource === "financial" && (row["Financial Value"] !== undefined || row.FinancialValue !== undefined)) {
+        transactionAmount = Number(row["Financial Value"] || row.FinancialValue || 0);
+      } else {
+        // Fallback to other potential column names
+        transactionAmount = Number(
+          row.Amount || row.amount || row.AMOUNT || 
+          row.Value || row.value || row["Customs Value"] || 
+          row["Financial Value"] || 0
+        );
+      }
+      
+      // Process the date - accept various date formats
+      let transactionDate = row.Date || row.date || row.DATE || new Date().toISOString().split('T')[0];
+      
+      // Check if it's already a string in ISO format
+      if (typeof transactionDate === 'string' && transactionDate.includes('-')) {
+        // Keep the date as is
+      } 
+      // If it's still a number (Excel date), convert it properly
+      else if (typeof transactionDate === 'number') {
+        const excelDate = XLSX.SSF.parse_date_code(transactionDate);
+        transactionDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+      }
+      
+      // Try to extract quantity and unit price if available
+      const quantity = Number(row.Quantity || row.quantity || row.QUANTITY || 1);
+      const unitPrice = transactionAmount > 0 && quantity > 0 
+        ? transactionAmount / quantity 
+        : Number(row.UnitPrice || row["Unit Price"] || row.unitPrice || row["Unit_Price"] || 0);
+      
       return {
         id: `${dataSource}-${Date.now()}-${index}`,
-        date: row.Date || row.date || new Date().toISOString().split('T')[0],
+        date: transactionDate,
         entity: row.Entity || row.entity || row.ENTITY || row.Organization || row.company || "Unknown",
         type: (row.Type || row.type || "import").toLowerCase(),
         currency: row.Currency || row.currency || "USD",
-        amount: Number(row.Amount || row.amount || row.AMOUNT || row.Value || row.value || 0),
-        quantity: Number(row.Quantity || row.quantity || row.QUANTITY || 1),
-        unitPrice: Number(row.UnitPrice || row["Unit Price"] || row.unitPrice || row["Unit_Price"] || 0),
+        amount: transactionAmount,
+        quantity: quantity,
+        unitPrice: unitPrice,
         product: row.Product || row.product || row.PRODUCT || row.Description || row.description || "Unknown",
         status: "pending",
         bank: row.Bank || row.bank || row.Institution || row.institution || "Unknown",
@@ -145,6 +189,9 @@ const CSVImport: React.FC<CSVImportProps> = ({
         <FileUp className="h-10 w-10 text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground mb-2">
           Upload {sourceLabel} data in CSV or Excel format
+        </p>
+        <p className="text-xs text-muted-foreground mb-4">
+          Required columns: Entity, Date, {dataSource === "customs" ? "Customs Value" : "Financial Value"}, Product, Currency
         </p>
         <Input
           type="file"
