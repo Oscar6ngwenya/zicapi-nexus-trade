@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,12 +58,20 @@ const CSVImport: React.FC<CSVImportProps> = ({
           
           // Handle Excel date conversions
           const processedData = parsedData.map(row => {
-            const processed = { ...row };
+            // Fix: Create a proper copy of the row object instead of spreading
+            const processed: Record<string, any> = {};
             
-            // Check if Date is an Excel date and convert it
-            if (processed.Date && typeof processed.Date === 'number') {
-              const excelDate = XLSX.SSF.parse_date_code(processed.Date);
-              processed.Date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+            // Copy all properties from the row object
+            if (row && typeof row === 'object') {
+              Object.keys(row).forEach(key => {
+                processed[key] = row[key];
+              });
+            
+              // Check if Date is an Excel date and convert it
+              if (processed.Date && typeof processed.Date === 'number') {
+                const excelDate = XLSX.SSF.parse_date_code(processed.Date);
+                processed.Date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+              }
             }
             
             return processed;
