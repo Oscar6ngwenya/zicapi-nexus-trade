@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -148,11 +147,11 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
   
   const getRoleName = (role: string) => {
     switch (role) {
-      case "admin": return "System Administrator";
-      case "regulator": return "Regulatory Agency";
-      case "bank": return "Bank Official";
-      case "customs": return "Customs Official";
-      case "business": return "Importer/Exporter";
+      case "admin": return "Admin";
+      case "regulator": return "Regulator";
+      case "bank": return "Bank";
+      case "customs": return "Customs";
+      case "business": return "Business";
       default: return role;
     }
   };

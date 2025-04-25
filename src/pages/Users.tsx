@@ -240,11 +240,11 @@ const Users: React.FC = () => {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">System Administrator</SelectItem>
-                      <SelectItem value="regulator">Regulatory Agency</SelectItem>
-                      <SelectItem value="bank">Bank Official</SelectItem>
-                      <SelectItem value="customs">Customs Official</SelectItem>
-                      <SelectItem value="business">Importer/Exporter</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="regulator">Regulator</SelectItem>
+                      <SelectItem value="bank">Bank</SelectItem>
+                      <SelectItem value="customs">Customs</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
