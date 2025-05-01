@@ -1,50 +1,34 @@
 
-import React, { useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Eye } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertTriangle, FileSearch, Search } from "lucide-react";
 
-// Flagged transaction type
 export interface FlaggedTransaction {
   id: string;
   date: string;
   entity: string;
-  type: "import" | "export";
+  type: string;
   currency: string;
   amount: number;
-  product: string;
   bank: string;
+  product: string;
   reason: string;
-  severity: "low" | "medium" | "high";
+  severity: "high" | "medium" | "low";
 }
 
 interface FlaggedTransactionsProps {
   transactions: FlaggedTransaction[];
+  onInvestigate?: (transaction: FlaggedTransaction) => void;
 }
 
-const FlaggedTransactions: React.FC<FlaggedTransactionsProps> = ({
+const FlaggedTransactions: React.FC<FlaggedTransactionsProps> = ({ 
   transactions,
+  onInvestigate
 }) => {
-  const [selectedTransaction, setSelectedTransaction] = useState<FlaggedTransaction | null>(null);
-  const [open, setOpen] = useState(false);
-
-  // Format currency display
+  // Format currency
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -52,168 +36,89 @@ const FlaggedTransactions: React.FC<FlaggedTransactionsProps> = ({
     }).format(amount);
   };
 
-  // Get severity badge
-  const getSeverityBadge = (severity: FlaggedTransaction["severity"]) => {
-    switch (severity) {
-      case "low":
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            Low
-          </Badge>
-        );
-      case "medium":
-        return (
-          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-            Medium
-          </Badge>
-        );
-      case "high":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            High
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{severity}</Badge>;
-    }
-  };
-
-  const handleViewDetails = (transaction: FlaggedTransaction) => {
-    setSelectedTransaction(transaction);
-    setOpen(true);
-  };
-
   return (
-    <>
-      <Card>
-        <CardHeader className="bg-red-50">
-          <CardTitle className="flex items-center text-red-700">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Flagged Transactions
-          </CardTitle>
-          <CardDescription className="text-red-600">
-            Transactions that have been flagged for potential violations
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
+    <Card>
+      <CardContent className="p-0">
+        {transactions.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground">
+            No flagged transactions found
+          </div>
+        ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Entity</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Product</TableHead>
                 <TableHead>Bank</TableHead>
                 <TableHead>Severity</TableHead>
+                <TableHead>Reason</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                    No flagged transactions found
+              {transactions.map((transaction) => (
+                <TableRow key={transaction.id}>
+                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell className="font-medium">{transaction.entity}</TableCell>
+                  <TableCell>
+                    {formatCurrency(transaction.amount, transaction.currency)}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {transaction.type === "import" ? "Import" : "Export"}
+                    </div>
+                  </TableCell>
+                  <TableCell>{transaction.product}</TableCell>
+                  <TableCell>{transaction.bank}</TableCell>
+                  <TableCell>
+                    {transaction.severity === "high" && (
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-200">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        High
+                      </Badge>
+                    )}
+                    {transaction.severity === "medium" && (
+                      <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Medium
+                      </Badge>
+                    )}
+                    {transaction.severity === "low" && (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Low
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-xs truncate" title={transaction.reason}>
+                      {transaction.reason}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right space-x-1">
+                    <Button size="sm" variant="outline">
+                      <Search className="h-3 w-3 mr-1" />
+                      Details
+                    </Button>
+                    {onInvestigate && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="border-amber-500 text-amber-600 hover:bg-amber-50"
+                        onClick={() => onInvestigate(transaction)}
+                      >
+                        <FileSearch className="h-3 w-3 mr-1" />
+                        Investigate
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
-              ) : (
-                transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">
-                      {transaction.date}
-                    </TableCell>
-                    <TableCell>{transaction.entity}</TableCell>
-                    <TableCell>
-                      <Badge variant={transaction.type === "import" ? "default" : "secondary"}>
-                        {transaction.type === "import" ? "Import" : "Export"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(transaction.amount, transaction.currency)}
-                    </TableCell>
-                    <TableCell>{transaction.bank}</TableCell>
-                    <TableCell>{getSeverityBadge(transaction.severity)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(transaction)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          {selectedTransaction && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center">
-                  <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-                  Flagged Transaction Details
-                </DialogTitle>
-                <DialogDescription>
-                  Review the details and reason for flagging
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Transaction ID</h3>
-                  <p>{selectedTransaction.id}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Date</h3>
-                  <p>{selectedTransaction.date}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Entity</h3>
-                  <p>{selectedTransaction.entity}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Type</h3>
-                  <p>{selectedTransaction.type === "import" ? "Import" : "Export"}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Amount</h3>
-                  <p>{formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Bank</h3>
-                  <p>{selectedTransaction.bank}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Product</h3>
-                  <p>{selectedTransaction.product}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground">Severity</h3>
-                  <p>{getSeverityBadge(selectedTransaction.severity)}</p>
-                </div>
-                <div className="col-span-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground">Reason for Flagging</h3>
-                  <div className="mt-1 p-3 bg-red-50 text-red-800 rounded-md border border-red-200">
-                    {selectedTransaction.reason}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  Close
-                </Button>
-                <Button>Investigate</Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

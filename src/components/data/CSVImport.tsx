@@ -105,7 +105,7 @@ const CSVImport: React.FC<CSVImportProps> = ({
       } else {
         // Fallback to other potential column names
         transactionAmount = Number(
-          row.Amount || row.amount || row.AMOUNT || 
+          row["Total Cost"] || row.Amount || row.amount || row.AMOUNT || 
           row.Value || row.value || row["Customs Value"] || 
           row["Financial Value"] || 0
         );
@@ -124,25 +124,48 @@ const CSVImport: React.FC<CSVImportProps> = ({
         transactionDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
       }
       
+      // Extract company information
+      const entity = row["Trading Company Name"] || row.Entity || row.entity || row.ENTITY || row.Organization || row.company || "Unknown";
+      
+      // Registration number (TIN)
+      const regNumber = row["Company Reg Number (TIN)"] || row["TIN"] || row.RegNumber || row.regNumber || row.TIN || row.tin;
+      
+      // Bill of Entry Number
+      const entryNumber = row["Bill of Entry Number"] || row.EntryNumber || row.entryNumber || row["Entry Number"];
+      
       // Try to extract quantity and unit price if available
-      const quantity = Number(row.Quantity || row.quantity || row.QUANTITY || 1);
-      const unitPrice = transactionAmount > 0 && quantity > 0 
-        ? transactionAmount / quantity 
-        : Number(row.UnitPrice || row["Unit Price"] || row.unitPrice || row["Unit_Price"] || 0);
+      const quantity = Number(row.Quantity || row.quantity || row.QUANTITY || row["Item Quantity"] || 1);
+      
+      // Unit Price with various possible column names
+      const unitPrice = row["Item Unit Price"] !== undefined 
+        ? Number(row["Item Unit Price"]) 
+        : (row.UnitPrice !== undefined 
+          ? Number(row.UnitPrice) 
+          : (row["Unit Price"] !== undefined 
+            ? Number(row["Unit Price"]) 
+            : (row.unitPrice !== undefined 
+              ? Number(row.unitPrice) 
+              : (row["Unit_Price"] !== undefined 
+                ? Number(row["Unit_Price"]) 
+                : (transactionAmount > 0 && quantity > 0 
+                  ? transactionAmount / quantity 
+                  : 0)))));
       
       return {
         id: `${dataSource}-${Date.now()}-${index}`,
         date: transactionDate,
-        entity: row.Entity || row.entity || row.ENTITY || row.Organization || row.company || "Unknown",
+        entity: entity,
         type: (row.Type || row.type || "import").toLowerCase(),
         currency: row.Currency || row.currency || "USD",
         amount: transactionAmount,
         quantity: quantity,
         unitPrice: unitPrice,
-        product: row.Product || row.product || row.PRODUCT || row.Description || row.description || "Unknown",
+        product: row["Import/Export Description"] || row.Product || row.product || row.PRODUCT || row.Description || row.description || "Unknown",
         status: "pending",
-        bank: row.Bank || row.bank || row.Institution || row.institution || "Unknown",
+        bank: row["Bank Used"] || row.Bank || row.bank || row.Institution || row.institution || "Unknown",
         source: dataSource,
+        regNumber: regNumber,
+        entryNumber: entryNumber,
         facilitator: dataSource === "customs" ? "Customs Department" : row.Bank || row.bank || row.Institution || "Unknown Financial Institution"
       };
     });
@@ -200,7 +223,8 @@ const CSVImport: React.FC<CSVImportProps> = ({
           Upload {sourceLabel} data in CSV or Excel format
         </p>
         <p className="text-xs text-muted-foreground mb-4">
-          Required columns: Entity, Date, {dataSource === "customs" ? "Customs Value" : "Financial Value"}, Product, Currency
+          Required fields: Trading Company Name, Date, Company Reg Number (TIN), Bank Used, Bill of Entry Number, 
+          Import/Export Description, Currency, Item Unit Price, Quantity, Total Cost
         </p>
         <Input
           type="file"

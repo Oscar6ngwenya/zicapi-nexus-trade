@@ -4,17 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import ImportForm from "@/components/data/ImportForm";
 import TransactionTable, { Transaction } from "@/components/dashboard/TransactionTable";
 import DataComplianceAnalytics from "@/components/analytics/DataComplianceAnalytics";
-import { analyzeCompliance, compareTransactionData } from "@/services/analyticsService";
+import { analyzeCompliance, compareTransactionData, formatDiscrepanciesForExport } from "@/services/analyticsService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 
 const DataImport: React.FC = () => {
   const [customsData, setCustomsData] = useState<Transaction[]>([]);
   const [financialData, setFinancialData] = useState<Transaction[]>([]);
   const [comparisonResults, setComparisonResults] = useState(analyzeCompliance([]));
   const [activeTab, setActiveTab] = useState("import");
+  const [userRole, setUserRole] = useState<string>("regulator");
+
+  // Get user role from localStorage if available
+  useEffect(() => {
+    const storedUser = localStorage.getItem("zicapi-user");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setUserRole(user.role);
+    }
+  }, []);
 
   // Update comparison analysis whenever either data source changes
   useEffect(() => {
@@ -34,12 +46,21 @@ const DataImport: React.FC = () => {
         // Show detailed summary of the comparison
         const discrepancies = analysis.dataDiscrepancies?.length || 0;
         
-        toast.info(
-          `Data comparison complete: ${analysis.complianceRate.toFixed(1)}% match rate`,
-          {
-            description: `${discrepancies} discrepancies found between customs and financial data`,
-          }
-        );
+        if (discrepancies > 0) {
+          toast.warning(
+            `Data comparison complete: ${discrepancies} discrepancies found!`,
+            {
+              description: `Compliance rate: ${analysis.complianceRate.toFixed(1)}%. Review the discrepancies in the Analytics tab.`,
+            }
+          );
+        } else {
+          toast.info(
+            `Data comparison complete: ${analysis.complianceRate.toFixed(1)}% match rate`,
+            {
+              description: `No discrepancies found between customs and financial data`,
+            }
+          );
+        }
       }
     }
   }, [customsData, financialData]);
@@ -66,13 +87,42 @@ const DataImport: React.FC = () => {
     // In a real application, navigate to detail page
   };
 
+  const exportVarianceReport = () => {
+    if (!comparisonResults.dataDiscrepancies || comparisonResults.dataDiscrepancies.length === 0) {
+      toast.error("No discrepancies to export");
+      return;
+    }
+
+    // Format data for export using the utility function
+    const exportData = formatDiscrepanciesForExport(comparisonResults.dataDiscrepancies);
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Variance Report");
+
+    // Generate download
+    XLSX.writeFile(wb, `data-variance-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    
+    toast.success("Variance report exported successfully");
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zicapi-primary">Data Import & Comparison</h1>
-        <p className="text-muted-foreground">
-          Import transaction data from customs and financial institutions for capital flight monitoring
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-zicapi-primary">Data Import & Comparison</h1>
+          <p className="text-muted-foreground">
+            Import transaction data from customs and financial institutions for capital flight monitoring
+          </p>
+        </div>
+        
+        {comparisonResults.dataDiscrepancies && comparisonResults.dataDiscrepancies.length > 0 && (
+          <Button variant="outline" onClick={exportVarianceReport} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export Variance Report
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -115,7 +165,7 @@ const DataImport: React.FC = () => {
         
         <TabsContent value="analytics">
           {(customsData.length > 0 || financialData.length > 0) && (
-            <DataComplianceAnalytics analysis={comparisonResults} />
+            <DataComplianceAnalytics analysis={comparisonResults} userRole={userRole} />
           )}
         </TabsContent>
         

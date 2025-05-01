@@ -11,9 +11,10 @@ import DataDiscrepancyTable from "@/components/analytics/DataDiscrepancyTable";
 
 interface DataComplianceAnalyticsProps {
   analysis: ComplianceAnalysis;
+  userRole?: string;
 }
 
-const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analysis }) => {
+const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analysis, userRole = "regulator" }) => {
   // Format chart data
   const chartData = {
     barData: analysis.complianceByBank,
@@ -130,7 +131,7 @@ const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analy
           
           {analysis.dataDiscrepancies && analysis.dataDiscrepancies.length > 0 && (
             <TabsContent value="discrepancies">
-              <DataDiscrepancyTable discrepancies={analysis.dataDiscrepancies} />
+              <DataDiscrepancyTable discrepancies={analysis.dataDiscrepancies} userRole={userRole} />
             </TabsContent>
           )}
         </Tabs>

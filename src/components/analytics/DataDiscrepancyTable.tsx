@@ -8,8 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DataDiscrepancy } from "@/services/analyticsService";
-import { AlertTriangle, Download } from "lucide-react";
+import { DataDiscrepancy, formatDiscrepanciesForExport } from "@/services/analyticsService";
+import { AlertTriangle, Download, FileWarning } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -25,11 +25,14 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
   userRole = "regulator" 
 }) => {
   // Function to format currency
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
+  const formatCurrency = (amount: number | string, currency: string) => {
+    if (typeof amount === 'number') {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+      }).format(amount);
+    }
+    return amount;
   };
 
   // Function to format dates for display
@@ -49,7 +52,9 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
   };
 
   // Function to get discrepancy type label
-  const getDiscrepancyTypeLabel = (type: string) => {
+  const getDiscrepancyTypeLabel = (type: string, field?: string) => {
+    if (field) return field;
+    
     switch (type) {
       case "price":
         return "Unit Price";
@@ -57,6 +62,10 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
         return "Quantity";
       case "total":
         return "Total Amount";
+      case "value":
+        return "Value";
+      case "data":
+        return "Data Mismatch";
       default:
         return type;
     }
@@ -69,29 +78,8 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
       return;
     }
 
-    // Format data for export
-    const exportData = discrepancies.map((d) => ({
-      Date: d.customsTransaction?.date || d.financialTransaction?.date,
-      Entity: d.customsTransaction?.entity || d.financialTransaction?.entity,
-      Product: d.customsTransaction?.product || d.financialTransaction?.product,
-      "Discrepancy Type": getDiscrepancyTypeLabel(d.discrepancyType),
-      "Customs Value": d.discrepancyType === "quantity" 
-        ? d.customsValue 
-        : formatCurrency(d.customsValue || 0, d.customsTransaction?.currency || "USD").replace(/[^0-9.-]+/g, ""),
-      "Financial Value": d.discrepancyType === "quantity"
-        ? d.financialValue
-        : formatCurrency(d.financialValue || 0, d.financialTransaction?.currency || "USD").replace(/[^0-9.-]+/g, ""),
-      "% Difference": `${d.percentageDifference.toFixed(2)}%`,
-      "Currency": d.customsTransaction?.currency || d.financialTransaction?.currency,
-      "Recommended Action": d.percentageDifference > 10 
-        ? "Immediate Investigation Required" 
-        : "Verification Needed",
-      "Potential Impact": d.discrepancyType === "price"
-        ? "Potential under/over invoicing"
-        : d.discrepancyType === "quantity"
-        ? "Potential misrepresentation of goods quantity"
-        : "Potential financial discrepancy"
-    }));
+    // Use the utility function for formatting export data
+    const exportData = formatDiscrepanciesForExport(discrepancies);
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -99,13 +87,42 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
     XLSX.utils.book_append_sheet(wb, ws, "Discrepancies");
 
     // Generate download
-    XLSX.writeFile(wb, `data-discrepancies-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `data-discrepancies-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
     
-    toast.success("Report exported successfully");
+    toast.success("Variance report exported successfully");
   };
 
   // Check if user can export (not a bank role)
   const canExport = userRole !== "bank";
+
+  // Function to determine if a value should be displayed as numeric or text
+  const formatValue = (discrepancy: DataDiscrepancy, isCustoms: boolean) => {
+    const value = isCustoms ? discrepancy.customsValue : discrepancy.financialValue;
+    const transaction = isCustoms ? discrepancy.customsTransaction : discrepancy.financialTransaction;
+    
+    // If it's undefined, return "N/A"
+    if (value === undefined) return "N/A";
+    
+    // Handle numeric values for specific fields
+    if (
+      discrepancy.field === "Item Unit Price" || 
+      discrepancy.field === "Total Cost" ||
+      discrepancy.discrepancyType === "price" ||
+      discrepancy.discrepancyType === "total" ||
+      typeof value === 'number'
+    ) {
+      const currency = transaction?.currency || "USD";
+      return typeof value === 'number' ? formatCurrency(value, currency) : value;
+    }
+    
+    // Handle quantity field
+    if (discrepancy.field === "Quantity" || discrepancy.discrepancyType === "quantity") {
+      return typeof value === 'number' ? value.toLocaleString() : value;
+    }
+    
+    // For all other fields, return as is
+    return value;
+  };
 
   return (
     <div className="space-y-4">
@@ -126,7 +143,7 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
             onClick={exportToExcel}
           >
             <Download className="h-4 w-4" />
-            Export Report
+            Export Variance Report
           </Button>
         )}
       </div>
@@ -137,7 +154,7 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
             <TableRow>
               <TableHead>Entity</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Discrepancy Type</TableHead>
+              <TableHead>Discrepancy Field</TableHead>
               <TableHead className="text-right">Customs Value</TableHead>
               <TableHead className="text-right">Financial Value</TableHead>
               <TableHead className="text-right">% Difference</TableHead>
@@ -156,7 +173,6 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
               const entity = discrepancy.customsTransaction?.entity || discrepancy.financialTransaction?.entity || "Unknown";
               const date = discrepancy.customsTransaction?.date || discrepancy.financialTransaction?.date || "Unknown";
               const product = discrepancy.customsTransaction?.product || discrepancy.financialTransaction?.product || "Unknown";
-              const currency = discrepancy.customsTransaction?.currency || discrepancy.financialTransaction?.currency || "USD";
               
               return (
                 <TableRow key={index} className={getSeverityClass()}>
@@ -166,24 +182,14 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
                   <TableCell>{formatDate(date)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-red-50 text-red-800">
-                      {getDiscrepancyTypeLabel(discrepancy.discrepancyType)}
+                      {getDiscrepancyTypeLabel(discrepancy.discrepancyType, discrepancy.field)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {discrepancy.discrepancyType === "quantity" 
-                      ? (discrepancy.customsValue || 0).toLocaleString()
-                      : formatCurrency(
-                          discrepancy.customsValue || 0,
-                          currency
-                        )}
+                    {formatValue(discrepancy, true)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {discrepancy.discrepancyType === "quantity"
-                      ? (discrepancy.financialValue || 0).toLocaleString()
-                      : formatCurrency(
-                          discrepancy.financialValue || 0,
-                          currency
-                        )}
+                    {formatValue(discrepancy, false)}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-red-700">
                     {discrepancy.percentageDifference.toFixed(2)}%

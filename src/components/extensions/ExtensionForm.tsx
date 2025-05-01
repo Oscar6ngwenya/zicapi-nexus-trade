@@ -1,264 +1,256 @@
 
 import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import { CalendarIcon, Clock } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Transaction } from "@/components/dashboard/TransactionTable";
 import { cn } from "@/lib/utils";
+import { format, addDays } from "date-fns";
+import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
 
 interface ExtensionFormProps {
-  onSubmit: (data: any) => void;
-  transactions: any[];
+  onSubmit: (extensionData: any) => void;
+  transactions: Transaction[];
 }
 
 const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions }) => {
-  const [formData, setFormData] = useState({
-    transactionId: "",
-    requestedDays: 30,
-    reason: "",
-    documents: null,
-    requestDate: new Date(),
-    newDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days from now
-  });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [transactionId, setTransactionId] = useState("");
+  const [requestedDays, setRequestedDays] = useState("30");
+  const [reason, setReason] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [companyName, setCompanyName] = useState("");
+  const [companyTIN, setCompanyTIN] = useState("");
+  const [extensionItem, setExtensionItem] = useState("");
+  const [hasDocuments, setHasDocuments] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (field: string, value: any) => {
-    if (field === "requestedDays") {
-      // Recalculate the new deadline when requested days change
-      const newDeadline = new Date();
-      newDeadline.setDate(newDeadline.getDate() + Number(value));
-      
-      setFormData({
-        ...formData,
-        requestedDays: Number(value),
-        newDeadline,
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [field]: value,
-      });
+  // Handle transaction selection
+  const handleTransactionSelect = (id: string) => {
+    setTransactionId(id);
+    // Auto-fill company information based on selected transaction
+    const selectedTx = transactions.find(tx => tx.id === id);
+    if (selectedTx) {
+      setCompanyName(selectedTx.entity);
+      // Set TIN if available or empty
+      setCompanyTIN(selectedTx.regNumber || "");
+      setExtensionItem(selectedTx.product);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setFormData({
-        ...formData,
-        documents: files[0],
-      });
-    }
+  // Calculate new deadline
+  const calculateNewDeadline = () => {
+    const days = parseInt(requestedDays, 10) || 0;
+    return format(addDays(new Date(), days), "yyyy-MM-dd");
   };
 
+  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
-    if (!formData.transactionId) {
-      toast.error("Missing transaction", {
-        description: "Please select a transaction for extension",
-      });
+    if (!transactionId || !requestedDays || !reason || !companyName || !companyTIN || !extensionItem) {
+      setError("Please fill in all required fields");
       return;
     }
-    
-    if (!formData.reason) {
-      toast.error("Missing reason", {
-        description: "Please provide a reason for the extension request",
-      });
+
+    // Clear any previous error
+    setError("");
+
+    // Find the selected transaction
+    const selectedTransaction = transactions.find(tx => tx.id === transactionId);
+    if (!selectedTransaction) {
+      setError("Transaction not found");
       return;
     }
+
+    // Prepare extension data
+    const extensionData = {
+      id: `ext-${Date.now()}`,
+      transactionId,
+      transactionInfo: selectedTransaction,
+      requestedDays: parseInt(requestedDays, 10),
+      reason,
+      requestDate: format(new Date(), "yyyy-MM-dd"),
+      newDeadline: calculateNewDeadline(),
+      status: "pending",
+      hasDocuments,
+      companyName,
+      companyTIN,
+      extensionItem
+    };
+
+    // Submit the extension request
+    onSubmit(extensionData);
     
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Find the transaction details
-      const transaction = transactions.find(t => t.id === formData.transactionId);
-      
-      const extensionData = {
-        id: `ext-${Date.now()}`,
-        transactionId: formData.transactionId,
-        transactionInfo: transaction,
-        requestedDays: formData.requestedDays,
-        reason: formData.reason,
-        requestDate: format(formData.requestDate, "yyyy-MM-dd"),
-        newDeadline: format(formData.newDeadline, "yyyy-MM-dd"),
-        status: "pending",
-        hasDocuments: !!formData.documents,
-      };
-      
-      onSubmit(extensionData);
-      
-      toast.success("Extension request submitted", {
-        description: `Your request for a ${formData.requestedDays}-day extension has been submitted for review`,
-      });
-      
-      // Reset form
-      setFormData({
-        transactionId: "",
-        requestedDays: 30,
-        reason: "",
-        documents: null,
-        requestDate: new Date(),
-        newDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      });
-      
-      setIsSubmitting(false);
-    }, 1500);
+    toast.success("Extension request submitted", {
+      description: `Your request for a ${requestedDays}-day extension has been submitted`,
+    });
+
+    // Reset form
+    setTransactionId("");
+    setRequestedDays("30");
+    setReason("");
+    setSelectedDate(new Date());
+    setCompanyName("");
+    setCompanyTIN("");
+    setExtensionItem("");
+    setHasDocuments(false);
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Request Extension</CardTitle>
+        <CardTitle>Request Deadline Extension</CardTitle>
         <CardDescription>
-          Request an extension for transaction delivery or payment period
+          Request an extension for your transaction deadline
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="transactionId">Select Transaction</Label>
-            <Select
-              value={formData.transactionId}
-              onValueChange={(value) => handleChange("transactionId", value)}
-            >
-              <SelectTrigger id="transactionId">
+            <Label htmlFor="company-name">Company Name *</Label>
+            <Input
+              id="company-name"
+              placeholder="Enter company name"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company-tin">Company Registration Number (TIN) *</Label>
+            <Input
+              id="company-tin"
+              placeholder="Enter TIN number"
+              value={companyTIN}
+              onChange={(e) => setCompanyTIN(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="transaction">Select Transaction *</Label>
+            <Select value={transactionId} onValueChange={handleTransactionSelect}>
+              <SelectTrigger>
                 <SelectValue placeholder="Select a transaction" />
               </SelectTrigger>
               <SelectContent>
-                {transactions.map((tx) => (
-                  <SelectItem key={tx.id} value={tx.id}>
-                    {tx.entity} - {tx.product.substring(0, 30)} (${tx.amount})
+                {transactions.map((transaction) => (
+                  <SelectItem key={transaction.id} value={transaction.id}>
+                    {transaction.date} - {transaction.product} (
+                    {transaction.currency} {transaction.amount.toLocaleString()})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="requestDate">Request Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.requestDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.requestDate ? (
-                      format(formData.requestDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.requestDate}
-                    onSelect={(date) => handleChange("requestDate", date)}
-                    disabled={(date) => date > new Date() || date < new Date("2020-01-01")}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="requestedDays">Extension Period (Days)</Label>
-              <div className="flex items-center space-x-2">
-                <Input
-                  id="requestedDays"
-                  type="number"
-                  min="1"
-                  max="180"
-                  value={formData.requestedDays}
-                  onChange={(e) => handleChange("requestedDays", e.target.value)}
-                />
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="extension-item">Extension Item *</Label>
+            <Input
+              id="extension-item"
+              placeholder="Item/Product requiring extension"
+              value={extensionItem}
+              onChange={(e) => setExtensionItem(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="requested-days">Days Requested *</Label>
+            <Input
+              id="requested-days"
+              type="number"
+              min="1"
+              max="90"
+              value={requestedDays}
+              onChange={(e) => setRequestedDays(e.target.value)}
+            />
+            {requestedDays && (
+              <p className="text-sm text-muted-foreground">
+                New deadline would be: {calculateNewDeadline()}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Supporting Documents</Label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="has-documents"
+                checked={hasDocuments}
+                onChange={(e) => setHasDocuments(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="has-documents" className="font-normal">
+                I have supporting documents for this request
+              </Label>
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="newDeadline">New Deadline</Label>
+            <Label htmlFor="reason">Reason for Extension *</Label>
+            <Textarea
+              id="reason"
+              placeholder="Explain why you need an extension"
+              rows={4}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+            />
+            <p className="text-sm text-muted-foreground">
+              {reason.length}/500 characters
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Request Date</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !formData.newDeadline && "text-muted-foreground"
+                    !selectedDate && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.newDeadline ? (
-                    format(formData.newDeadline, "PPP")
-                  ) : (
-                    <span>New deadline</span>
-                  )}
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.newDeadline}
-                  onSelect={(date) => handleChange("newDeadline", date)}
-                  disabled={(date) => date < new Date()}
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
                   initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  disabled={(date) => date < new Date()}
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="reason">Reason for Extension</Label>
-            <Textarea
-              id="reason"
-              value={formData.reason}
-              onChange={(e) => handleChange("reason", e.target.value)}
-              placeholder="Explain why you need this extension..."
-              rows={4}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="documents">Supporting Documents (Optional)</Label>
-            <Input
-              id="documents"
-              type="file"
-              onChange={handleFileChange}
-              accept=".pdf,.jpg,.png,.doc,.docx"
-            />
-            <p className="text-xs text-muted-foreground">
-              Upload any documents that support your extension request (max 5MB)
-            </p>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" type="button" onClick={() => window.history.back()}>
-            Cancel
+
+          <Button type="submit" className="w-full">
+            Submit Extension Request
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit Request"}
-          </Button>
-        </CardFooter>
-      </form>
+        </form>
+      </CardContent>
     </Card>
   );
 };
