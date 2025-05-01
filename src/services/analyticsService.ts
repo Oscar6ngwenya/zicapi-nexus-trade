@@ -1,4 +1,3 @@
-
 import { Transaction } from "@/components/dashboard/TransactionTable";
 import * as XLSX from "xlsx";
 
@@ -12,6 +11,8 @@ const COMPLIANCE_RULES = {
   MONITORED_BANKS: ["Commerce Bank", "International Finance"],
   // Tolerance for price comparison (percentage)
   PRICE_TOLERANCE: 0.01, // Lowered to 1% tolerance to catch more discrepancies
+  // Tolerance for string comparison
+  STRING_TOLERANCE: 0, // No tolerance for string fields - must match exactly
   // Penalty rate for non-compliance (percentage of original amount)
   PENALTY_RATE: 1.0, // 100% penalty
   // Daily interest rate for continued non-compliance (percentage)
@@ -212,37 +213,59 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
     return discrepancies;
   }
   
-  // Fields that must be compared
+  // Fields that must be compared - ensuring ALL fields are strictly validated
   const fieldsToCompare = [
-    { name: "date", label: "Date", isNumeric: false },
-    { name: "entity", label: "Trading Company Name", isNumeric: false },
-    { name: "regNumber", label: "Company Registration Number", isNumeric: false },
-    { name: "bank", label: "Bank Used", isNumeric: false },
-    { name: "entryNumber", label: "Bill of Entry Number", isNumeric: false },
-    { name: "product", label: "Import/Export Description", isNumeric: false },
-    { name: "currency", label: "Currency", isNumeric: false },
-    { name: "unitPrice", label: "Item Unit Price", isNumeric: true },
-    { name: "quantity", label: "Quantity", isNumeric: true },
-    { name: "amount", label: "Total Cost", isNumeric: true }
+    { name: "date", label: "Date", isNumeric: false, critical: true },
+    { name: "entity", label: "Trading Company Name", isNumeric: false, critical: true },
+    { name: "regNumber", label: "Company Registration Number", isNumeric: false, critical: true },
+    { name: "bank", label: "Bank Used", isNumeric: false, critical: true },
+    { name: "entryNumber", label: "Bill of Entry Number", isNumeric: false, critical: true },
+    { name: "product", label: "Import/Export Description", isNumeric: false, critical: true },
+    { name: "currency", label: "Currency", isNumeric: false, critical: true },
+    { name: "unitPrice", label: "Item Unit Price", isNumeric: true, critical: true },
+    { name: "quantity", label: "Quantity", isNumeric: true, critical: true },
+    { name: "amount", label: "Total Cost", isNumeric: true, critical: true },
+    { name: "type", label: "Transaction Type", isNumeric: false, critical: true },
+    { name: "facilitator", label: "Transaction Facilitator", isNumeric: false, critical: false }
   ];
   
-  // For each customs transaction, find matching financial transactions
+  // For each customs transaction, find matching financial transactions with enhanced matching criteria
   customsTransactions.forEach(customsTx => {
-    // Find matching financial transactions
+    // Find matching financial transactions based on multiple matching fields
     const matchingFinancialTxs = financialTransactions.filter(financialTx => 
-      // Match by entity (company name) and date as base criteria
-      customsTx.entity === financialTx.entity && customsTx.date === financialTx.date
+      // Match by multiple criteria to improve accuracy
+      (customsTx.entity === financialTx.entity || 
+       (customsTx.regNumber && financialTx.regNumber && customsTx.regNumber === financialTx.regNumber)) &&
+      // Check date proximity
+      customsTx.date === financialTx.date
     );
     
     // Compare with each matching financial transaction
     matchingFinancialTxs.forEach(financialTx => {
-      // Compare each field
+      // Compare each field with strict validation
       fieldsToCompare.forEach(field => {
         const customsValue = customsTx[field.name as keyof Transaction];
         const financialValue = financialTx[field.name as keyof Transaction];
         
-        // Skip if either value is undefined
-        if (customsValue === undefined || financialValue === undefined) {
+        // Skip if both values are undefined or the field is not critical for comparison
+        if ((customsValue === undefined && financialValue === undefined) || 
+            (field.critical === false && (customsValue === undefined || financialValue === undefined))) {
+          return;
+        }
+        
+        // Flag as discrepancy if one value exists and the other doesn't
+        if ((customsValue === undefined && financialValue !== undefined) ||
+            (customsValue !== undefined && financialValue === undefined)) {
+          discrepancies.push({
+            customsTransaction: customsTx,
+            financialTransaction: financialTx,
+            discrepancyType: "missing data",
+            customsValue: customsValue,
+            financialValue: financialValue,
+            percentageDifference: 100, // 100% difference when data is missing
+            field: field.label,
+            potentialCapitalFlight: field.name === "amount" ? true : false
+          });
           return;
         }
         
@@ -255,21 +278,35 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
           const numericFinancialValue = Number(financialValue);
           
           // Calculate percentage difference for numeric values
-          if (numericCustomsValue > 0 || numericFinancialValue > 0) {
+          if (!isNaN(numericCustomsValue) && !isNaN(numericFinancialValue)) {
             const diff = Math.abs(numericCustomsValue - numericFinancialValue);
+            const max = Math.max(numericCustomsValue, numericFinancialValue);
             const min = Math.min(numericCustomsValue, numericFinancialValue);
-            percentageDiff = min > 0 ? (diff / min) * 100 : 0;
+            percentageDiff = min > 0 ? (diff / min) * 100 : (max > 0 ? 100 : 0);
             isDifferent = percentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100;
+            
+            // Special handling for total amount - always flag difference in financial values
+            if (field.name === "amount" && diff > 0) {
+              isDifferent = true;
+            }
+          } else {
+            // If one value can't be converted to number, it's different
+            isDifferent = true;
+            percentageDiff = 100;
           }
         } else {
-          // For non-numeric fields, any difference is a discrepancy
+          // For non-numeric fields, any difference is a discrepancy - strict string comparison
           isDifferent = customsValue !== financialValue;
           percentageDiff = isDifferent ? 100 : 0; // 100% different if strings don't match
         }
         
         // Add discrepancy if difference detected
         if (isDifferent) {
-          const potentialCapitalFlight = field.name === 'amount' && Number(financialValue) > Number(customsValue);
+          // Determine if this might indicate capital flight
+          const potentialCapitalFlight = 
+            (field.name === 'amount' && Number(financialValue) > Number(customsValue)) || 
+            (field.name === 'unitPrice' && Number(financialValue) > Number(customsValue)) ||
+            (field.name === 'currency' && customsValue !== financialValue);
           
           discrepancies.push({
             customsTransaction: customsTx,
@@ -284,6 +321,42 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
         }
       });
     });
+    
+    // Flag customs transactions with no matching financial transaction
+    if (matchingFinancialTxs.length === 0) {
+      discrepancies.push({
+        customsTransaction: customsTx,
+        financialTransaction: undefined,
+        discrepancyType: "missing transaction",
+        customsValue: customsTx.amount,
+        financialValue: undefined,
+        percentageDifference: 100,
+        potentialCapitalFlight: true,
+        field: "Entire Transaction"
+      });
+    }
+  });
+  
+  // Flag financial transactions with no matching customs transaction
+  financialTransactions.forEach(financialTx => {
+    const matchingCustomsTx = customsTransactions.find(customsTx => 
+      (customsTx.entity === financialTx.entity || 
+       (customsTx.regNumber && financialTx.regNumber && customsTx.regNumber === financialTx.regNumber)) &&
+      customsTx.date === financialTx.date
+    );
+    
+    if (!matchingCustomsTx) {
+      discrepancies.push({
+        customsTransaction: undefined,
+        financialTransaction: financialTx,
+        discrepancyType: "missing transaction",
+        customsValue: undefined,
+        financialValue: financialTx.amount,
+        percentageDifference: 100,
+        potentialCapitalFlight: true,
+        field: "Entire Transaction"
+      });
+    }
   });
   
   return discrepancies;

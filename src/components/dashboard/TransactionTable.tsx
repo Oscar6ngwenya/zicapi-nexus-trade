@@ -36,12 +36,14 @@ interface TransactionTableProps {
   transactions: Transaction[];
   title?: string;
   onViewDetails?: (id: string) => void;
+  compact?: boolean;
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({
   transactions,
   title = "Recent Transactions",
   onViewDetails,
+  compact = false,
 }) => {
   // Format currency
   const formatCurrency = (amount: number, currency: string) => {
@@ -64,9 +66,11 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Entity</TableHead>
+              {!compact && <TableHead>Reg Number</TableHead>}
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Status</TableHead>
+              {!compact && <TableHead>Source</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -74,7 +78,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
             {transactions.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={compact ? 6 : 8}
                   className="text-center text-muted-foreground"
                 >
                   No transactions to display
@@ -86,25 +90,31 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                   <TableCell>{transaction.date}</TableCell>
                   <TableCell className="font-medium">
                     {transaction.entity}
-                    {transaction.source && (
+                    {transaction.bank && (
                       <div className="text-xs text-muted-foreground">
-                        {transaction.source === "customs"
-                          ? "Customs Data"
-                          : "Financial Data"}
+                        {transaction.bank}
                       </div>
                     )}
                   </TableCell>
+                  {!compact && (
+                    <TableCell>
+                      {transaction.regNumber || <span className="text-muted-foreground">N/A</span>}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="max-w-xs truncate">{transaction.product}</div>
                     <div className="text-xs text-muted-foreground">
                       {transaction.type === "import" ? "Import" : "Export"}
+                      {transaction.entryNumber && ` • Entry: ${transaction.entryNumber}`}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(transaction.amount, transaction.currency)}
-                    <div className="text-xs text-muted-foreground">
-                      {transaction.bank}
-                    </div>
+                    {transaction.unitPrice && transaction.quantity && (
+                      <div className="text-xs text-muted-foreground">
+                        {formatCurrency(transaction.unitPrice, transaction.currency)} × {transaction.quantity}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {!transaction.status && (
@@ -121,7 +131,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                       </Badge>
                     )}
                     {transaction.status === "flagged" && (
-                      <Badge className="bg-red-100 text-red-800 hover:bg-red-200">
+                      <Badge 
+                        className="bg-red-100 text-red-800 hover:bg-red-200"
+                        title={transaction.flagReason}
+                      >
                         Flagged
                       </Badge>
                     )}
@@ -131,6 +144,23 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                       </Badge>
                     )}
                   </TableCell>
+                  {!compact && (
+                    <TableCell>
+                      {transaction.source ? (
+                        <Badge variant="outline" className={
+                          transaction.source === "customs" ? "bg-blue-50" :
+                          transaction.source === "financial" ? "bg-purple-50" :
+                          "bg-gray-50"
+                        }>
+                          {transaction.source === "customs" ? "Customs" : 
+                           transaction.source === "financial" ? "Financial" : 
+                           "Manual"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Unknown</Badge>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

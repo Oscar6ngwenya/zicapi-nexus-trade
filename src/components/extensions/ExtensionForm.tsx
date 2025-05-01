@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, FileUp, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Transaction } from "@/components/dashboard/TransactionTable";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,8 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
   const [extensionItem, setExtensionItem] = useState("");
   const [hasDocuments, setHasDocuments] = useState(false);
   const [error, setError] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [transactionType, setTransactionType] = useState<"import" | "export">("import");
 
   // Handle transaction selection
   const handleTransactionSelect = (id: string) => {
@@ -42,6 +44,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
       // Set TIN if available or empty
       setCompanyTIN(selectedTx.regNumber || "");
       setExtensionItem(selectedTx.product);
+      setTransactionType(selectedTx.type);
     }
   };
 
@@ -51,12 +54,29 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
     return format(addDays(new Date(), days), "yyyy-MM-dd");
   };
 
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setFiles(prevFiles => [...prevFiles, ...newFiles]);
+      setHasDocuments(true);
+    }
+  };
+
+  // Remove file from list
+  const removeFile = (index: number) => {
+    const newFiles = [...files];
+    newFiles.splice(index, 1);
+    setFiles(newFiles);
+    setHasDocuments(newFiles.length > 0);
+  };
+
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
-    if (!transactionId || !requestedDays || !reason || !companyName || !companyTIN || !extensionItem) {
+    if (!transactionType || !requestedDays || !reason || !companyName || !companyTIN || !extensionItem) {
       setError("Please fill in all required fields");
       return;
     }
@@ -64,27 +84,46 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
     // Clear any previous error
     setError("");
 
-    // Find the selected transaction
-    const selectedTransaction = transactions.find(tx => tx.id === transactionId);
-    if (!selectedTransaction) {
-      setError("Transaction not found");
-      return;
-    }
+    // Find the selected transaction if any
+    const selectedTransaction = transactionId ? 
+      transactions.find(tx => tx.id === transactionId) : 
+      null;
+
+    // Prepare file information
+    const fileInfo = files.map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    }));
 
     // Prepare extension data
     const extensionData = {
       id: `ext-${Date.now()}`,
       transactionId,
-      transactionInfo: selectedTransaction,
+      transactionInfo: selectedTransaction || {
+        id: `manual-tx-${Date.now()}`,
+        date: format(selectedDate, "yyyy-MM-dd"),
+        entity: companyName,
+        type: transactionType,
+        currency: "USD", // Default currency
+        amount: 0, // Unknown amount for manually created transaction
+        product: extensionItem,
+        status: "pending",
+        bank: "Not specified",
+        regNumber: companyTIN
+      },
       requestedDays: parseInt(requestedDays, 10),
       reason,
       requestDate: format(new Date(), "yyyy-MM-dd"),
       newDeadline: calculateNewDeadline(),
       status: "pending",
       hasDocuments,
+      documentFiles: fileInfo,
       companyName,
       companyTIN,
-      extensionItem
+      extensionItem,
+      transactionType
     };
 
     // Submit the extension request
@@ -103,6 +142,8 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
     setCompanyTIN("");
     setExtensionItem("");
     setHasDocuments(false);
+    setFiles([]);
+    setTransactionType("import");
   };
 
   return (
@@ -144,7 +185,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="transaction">Select Transaction *</Label>
+            <Label htmlFor="transaction">Select Transaction (Optional)</Label>
             <Select value={transactionId} onValueChange={handleTransactionSelect}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a transaction" />
@@ -156,6 +197,25 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
                     {transaction.currency} {transaction.amount.toLocaleString()})
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              If you don't select an existing transaction, a new one will be created
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="transaction-type">Transaction Type *</Label>
+            <Select 
+              value={transactionType} 
+              onValueChange={(value: "import" | "export") => setTransactionType(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select transaction type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="import">Import</SelectItem>
+                <SelectItem value="export">Export</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -189,17 +249,53 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
 
           <div className="space-y-2">
             <Label>Supporting Documents</Label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="has-documents"
-                checked={hasDocuments}
-                onChange={(e) => setHasDocuments(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="has-documents" className="font-normal">
-                I have supporting documents for this request
-              </Label>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  className="w-full"
+                >
+                  <FileUp className="h-4 w-4 mr-2" />
+                  Upload Document
+                </Button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.png"
+                />
+              </div>
+              
+              {files.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <Label>Uploaded Documents:</Label>
+                  <div className="max-h-40 overflow-y-auto border rounded-md p-2">
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between py-1 border-b last:border-b-0">
+                        <span className="text-sm truncate max-w-[80%]" title={file.name}>
+                          {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                        </span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => removeFile(index)}
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: PDF, Word, Excel, JPEG, PNG (Max 10MB per file)
+              </p>
             </div>
           </div>
 

@@ -22,6 +22,11 @@ interface Extension {
   newDeadline: string;
   status: "pending" | "approved" | "rejected";
   hasDocuments: boolean;
+  documentFiles?: any[];
+  companyName: string;
+  companyTIN: string;
+  extensionItem: string;
+  transactionType?: "import" | "export";
 }
 
 const Extensions: React.FC = () => {
@@ -48,6 +53,10 @@ const Extensions: React.FC = () => {
       newDeadline: "2023-06-30",
       status: "pending",
       hasDocuments: true,
+      companyName: "Global Imports Ltd",
+      companyTIN: "GL123456",
+      extensionItem: "Industrial machinery",
+      transactionType: "import",
     },
     {
       id: "ext-2",
@@ -69,6 +78,10 @@ const Extensions: React.FC = () => {
       newDeadline: "2023-07-15",
       status: "approved",
       hasDocuments: true,
+      companyName: "Agro Exports Co",
+      companyTIN: "AEC789012",
+      extensionItem: "Agricultural produce",
+      transactionType: "export",
     },
     {
       id: "ext-3",
@@ -90,13 +103,17 @@ const Extensions: React.FC = () => {
       newDeadline: "2023-06-20",
       status: "rejected",
       hasDocuments: false,
+      companyName: "Auto Parts Ltd",
+      companyTIN: "APL345678",
+      extensionItem: "Automotive components",
+      transactionType: "export",
     },
   ]);
 
-  // Mock data - transactions eligible for extension
+  // Mock data - transactions eligible for extension - updated with more import/export examples
   const mockTransactions: Transaction[] = [
     {
-      id: "1",
+      id: "import-1",
       date: "2023-05-01",
       entity: "Global Imports Ltd",
       type: "import",
@@ -105,9 +122,10 @@ const Extensions: React.FC = () => {
       product: "Industrial machinery",
       status: "pending",
       bank: "First National Bank",
+      regNumber: "GL123456",
     },
     {
-      id: "2",
+      id: "import-2",
       date: "2023-05-05",
       entity: "Tech Solutions Inc",
       type: "import",
@@ -116,9 +134,22 @@ const Extensions: React.FC = () => {
       product: "Computer equipment",
       status: "compliant",
       bank: "Commerce Bank",
+      regNumber: "TSI234567",
     },
     {
-      id: "5",
+      id: "export-1",
+      date: "2023-05-10",
+      entity: "Mineral Exports Ltd",
+      type: "export",
+      currency: "USD",
+      amount: 42500,
+      product: "Raw minerals",
+      status: "pending",
+      bank: "International Bank",
+      regNumber: "MEL456789",
+    },
+    {
+      id: "export-2",
       date: "2023-05-18",
       entity: "Auto Parts Ltd",
       type: "export",
@@ -127,6 +158,19 @@ const Extensions: React.FC = () => {
       product: "Automotive components",
       status: "pending",
       bank: "Commerce Bank",
+      regNumber: "APL345678",
+    },
+    {
+      id: "import-3",
+      date: "2023-05-22",
+      entity: "Pharma Global",
+      type: "import",
+      currency: "CHF",
+      amount: 36700,
+      product: "Pharmaceutical ingredients",
+      status: "pending",
+      bank: "Swiss International",
+      regNumber: "PG567890",
     },
   ];
 
@@ -205,17 +249,20 @@ const Extensions: React.FC = () => {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Entity</TableHead>
+                    <TableHead>TIN</TableHead>
                     <TableHead>Transaction</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Requested Days</TableHead>
                     <TableHead>New Deadline</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Documents</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {extensions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">
+                      <TableCell colSpan={10} className="text-center">
                         No extension requests found
                       </TableCell>
                     </TableRow>
@@ -224,16 +271,24 @@ const Extensions: React.FC = () => {
                       <TableRow key={extension.id}>
                         <TableCell>{extension.requestDate}</TableCell>
                         <TableCell>
-                          {extension.transactionInfo.entity}
+                          {extension.companyName || extension.transactionInfo.entity}
                         </TableCell>
                         <TableCell>
-                          <div className="max-w-xs truncate" title={extension.transactionInfo.product}>
-                            {extension.transactionInfo.product}
+                          {extension.companyTIN || extension.transactionInfo.regNumber || "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs truncate" title={extension.extensionItem || extension.transactionInfo.product}>
+                            {extension.extensionItem || extension.transactionInfo.product}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {extension.transactionInfo.currency}{" "}
                             {extension.transactionInfo.amount.toLocaleString()}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={extension.transactionInfo.type === "import" ? "default" : "secondary"}>
+                            {extension.transactionInfo.type === "import" ? "Import" : "Export"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
@@ -248,6 +303,15 @@ const Extensions: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(extension.status)}</TableCell>
+                        <TableCell>
+                          {extension.hasDocuments ? (
+                            <Badge variant="outline" className="bg-green-50">
+                              {extension.documentFiles ? `${extension.documentFiles.length} files` : "Yes"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-50">No</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right space-x-2">
                           {extension.status === "pending" && (
                             <>
