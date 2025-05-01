@@ -23,7 +23,7 @@ export interface Transaction {
   product: string;
   status?: "pending" | "compliant" | "flagged" | "initiated";
   bank: string;
-  source?: "customs" | "financial";
+  source?: "customs" | "financial" | "manual"; // Updated to include "manual" as a valid source
   flagReason?: string;
   unitPrice?: number;
   quantity?: number;
