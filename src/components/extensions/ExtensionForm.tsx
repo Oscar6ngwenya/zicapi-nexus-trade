@@ -33,6 +33,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [transactionType, setTransactionType] = useState<"import" | "export">("import");
+  const [itemValue, setItemValue] = useState<string>("");
 
   // Handle transaction selection
   const handleTransactionSelect = (id: string) => {
@@ -45,6 +46,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
       setCompanyTIN(selectedTx.regNumber || "");
       setExtensionItem(selectedTx.product);
       setTransactionType(selectedTx.type);
+      setItemValue(selectedTx.amount.toString());
     }
   };
 
@@ -76,7 +78,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
     e.preventDefault();
     
     // Validate form
-    if (!transactionType || !requestedDays || !reason || !companyName || !companyTIN || !extensionItem) {
+    if (!transactionType || !requestedDays || !reason || !companyName || !companyTIN || !extensionItem || !itemValue) {
       setError("Please fill in all required fields");
       return;
     }
@@ -107,7 +109,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
         entity: companyName,
         type: transactionType,
         currency: "USD", // Default currency
-        amount: 0, // Unknown amount for manually created transaction
+        amount: parseFloat(itemValue) || 0,
         product: extensionItem,
         status: "pending",
         bank: "Not specified",
@@ -123,7 +125,8 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
       companyName,
       companyTIN,
       extensionItem,
-      transactionType
+      transactionType,
+      itemValue: parseFloat(itemValue) || 0
     };
 
     // Submit the extension request
@@ -144,6 +147,7 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
     setHasDocuments(false);
     setFiles([]);
     setTransactionType("import");
+    setItemValue("");
   };
 
   return (
@@ -228,6 +232,25 @@ const ExtensionForm: React.FC<ExtensionFormProps> = ({ onSubmit, transactions })
               value={extensionItem}
               onChange={(e) => setExtensionItem(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="item-value">Item Value (Amount) *</Label>
+            <div className="flex">
+              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="item-value"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Enter item value"
+                value={itemValue}
+                onChange={(e) => setItemValue(e.target.value)}
+                className="rounded-l-none"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

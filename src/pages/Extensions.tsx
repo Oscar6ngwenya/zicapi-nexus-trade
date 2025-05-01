@@ -27,6 +27,7 @@ interface Extension {
   companyTIN: string;
   extensionItem: string;
   transactionType?: "import" | "export";
+  itemValue?: number;
 }
 
 const Extensions: React.FC = () => {
@@ -57,6 +58,7 @@ const Extensions: React.FC = () => {
       companyTIN: "GL123456",
       extensionItem: "Industrial machinery",
       transactionType: "import",
+      itemValue: 25000,
     },
     {
       id: "ext-2",
@@ -82,6 +84,7 @@ const Extensions: React.FC = () => {
       companyTIN: "AEC789012",
       extensionItem: "Agricultural produce",
       transactionType: "export",
+      itemValue: 35000,
     },
     {
       id: "ext-3",
@@ -107,6 +110,7 @@ const Extensions: React.FC = () => {
       companyTIN: "APL345678",
       extensionItem: "Automotive components",
       transactionType: "export",
+      itemValue: 18500,
     },
   ]);
 
@@ -252,6 +256,7 @@ const Extensions: React.FC = () => {
                     <TableHead>TIN</TableHead>
                     <TableHead>Transaction</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Item Value</TableHead>
                     <TableHead>Requested Days</TableHead>
                     <TableHead>New Deadline</TableHead>
                     <TableHead>Status</TableHead>
@@ -262,7 +267,7 @@ const Extensions: React.FC = () => {
                 <TableBody>
                   {extensions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center">
+                      <TableCell colSpan={11} className="text-center">
                         No extension requests found
                       </TableCell>
                     </TableRow>
@@ -281,14 +286,17 @@ const Extensions: React.FC = () => {
                             {extension.extensionItem || extension.transactionInfo.product}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {extension.transactionInfo.currency}{" "}
-                            {extension.transactionInfo.amount.toLocaleString()}
+                            {extension.transactionInfo.bank || "N/A"}
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={extension.transactionInfo.type === "import" ? "default" : "secondary"}>
                             {extension.transactionInfo.type === "import" ? "Import" : "Export"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {extension.transactionInfo.currency}{" "}
+                          {(extension.itemValue || extension.transactionInfo.amount).toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
