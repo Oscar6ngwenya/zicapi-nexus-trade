@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import AcquittalDetails from "@/components/acquittals/AcquittalDetails";
+import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
 
 interface AcquittalDocument {
   id: string;
@@ -85,11 +86,23 @@ const Acquittals: React.FC = () => {
   const [newAcquittalFiles, setNewAcquittalFiles] = useState<File[]>([]);
   const [newAcquittalError, setNewAcquittalError] = useState("");
   
+  // Add state for details dialog
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedAcquittal, setSelectedAcquittal] = useState<Acquittal | null>(null);
+  
+  // Add current user state for audit logging
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    username: string;
+    role: string;
+  } | null>(null);
+  
   // Get user role from localStorage if available
   useEffect(() => {
     const storedUser = localStorage.getItem("zicapi-user");
     if (storedUser) {
       const user = JSON.parse(storedUser);
+      setCurrentUser(user);
       setUserRole(user.role);
     }
   }, []);
@@ -263,9 +276,15 @@ const Acquittals: React.FC = () => {
 
   // Handle view details
   const handleViewDetails = (id: string) => {
-    toast.info("Viewing acquittal details", {
-      description: `Showing details for acquittal ID: ${id}`,
-    });
+    const acquittal = acquittals.find(acq => acq.id === id);
+    if (acquittal) {
+      setSelectedAcquittal(acquittal);
+      setDetailsDialogOpen(true);
+    } else {
+      toast.error("Acquittal not found", {
+        description: `Could not find details for acquittal ID: ${id}`,
+      });
+    }
   };
   
   // Create new acquittal
@@ -857,6 +876,14 @@ const Acquittals: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Acquittal Details Dialog */}
+      <AcquittalDetails
+        acquittal={selectedAcquittal}
+        isOpen={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 };

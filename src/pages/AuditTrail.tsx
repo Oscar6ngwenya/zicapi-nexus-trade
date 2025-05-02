@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -244,7 +243,7 @@ const AuditTrail: React.FC = () => {
               <label className="text-sm font-medium">Start Date</label>
               <DatePicker
                 date={filters.startDate ? new Date(filters.startDate) : undefined}
-                onSelect={(date) => handleFilterChange("startDate", date ? date.toISOString() : "")}
+                setDate={(date) => handleFilterChange("startDate", date ? date.toISOString() : "")}
               />
             </div>
             
@@ -252,7 +251,7 @@ const AuditTrail: React.FC = () => {
               <label className="text-sm font-medium">End Date</label>
               <DatePicker
                 date={filters.endDate ? new Date(filters.endDate) : undefined}
-                onSelect={(date) => handleFilterChange("endDate", date ? date.toISOString() : "")}
+                setDate={(date) => handleFilterChange("endDate", date ? date.toISOString() : "")}
               />
             </div>
           </div>

@@ -30,6 +30,7 @@ export const AuditActions = {
   USER_CREATE: "User Creation",
   USER_UPDATE: "User Update",
   USER_DELETE: "User Deletion",
+  ACQUITTAL_VIEW: "Acquittal Details View",
 };
 
 // Module names for consistent logging
