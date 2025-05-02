@@ -10,14 +10,44 @@ const COMPLIANCE_RULES = {
   HIGH_RISK_CURRENCIES: ["USD", "EUR", "GBP"],
   // Banks that are flagged for extra monitoring
   MONITORED_BANKS: ["Commerce Bank", "International Finance"],
-  // Tolerance for price comparison (percentage)
-  PRICE_TOLERANCE: 0.005, // Lowered to 0.5% tolerance to catch more discrepancies
+  // Tolerance levels for price comparison (percentage)
+  PRICE_TOLERANCE: {
+    GREEN: 0.05, // 5% tolerance - compliant
+    YELLOW: 0.15, // 5-15% tolerance - suspicious
+    RED: 0.15 // >15% - likely fraudulent
+  },
   // Tolerance for string comparison (Levenshtein distance for fuzzy matching)
-  STRING_TOLERANCE: 0, // No tolerance for string fields - must match exactly
+  STRING_TOLERANCE: 3, // Allow up to 3 character differences for string fields
   // Penalty rate for non-compliance (percentage of original amount)
   PENALTY_RATE: 1.0, // 100% penalty
   // Daily interest rate for continued non-compliance (percentage)
-  DAILY_INTEREST_RATE: 0.05 // 5% daily interest
+  DAILY_INTEREST_RATE: 0.05, // 5% daily interest
+  // Number of days to consider for transaction matching
+  DATE_MATCHING_WINDOW: 3
+};
+
+// Zimbabwe TIN format validation regex
+const ZW_TIN_REGEX = /^\d{10}[A-Z]$/;
+
+// Historical exchange rates (normally would be fetched from an API)
+const EXCHANGE_RATES = {
+  "2023-01-01": { "ZWL": 0.0031, "EUR": 1.09, "GBP": 1.24 },
+  "2023-02-01": { "ZWL": 0.0028, "EUR": 1.08, "GBP": 1.22 },
+  "2023-03-01": { "ZWL": 0.0027, "EUR": 1.07, "GBP": 1.21 },
+  "2023-04-01": { "ZWL": 0.0026, "EUR": 1.09, "GBP": 1.23 },
+  "2023-05-01": { "ZWL": 0.0024, "EUR": 1.10, "GBP": 1.25 },
+  "2023-06-01": { "ZWL": 0.0022, "EUR": 1.08, "GBP": 1.27 },
+  "2023-07-01": { "ZWL": 0.0020, "EUR": 1.10, "GBP": 1.28 },
+  "2023-08-01": { "ZWL": 0.0019, "EUR": 1.09, "GBP": 1.27 },
+  "2023-09-01": { "ZWL": 0.0017, "EUR": 1.07, "GBP": 1.26 },
+  "2023-10-01": { "ZWL": 0.0016, "EUR": 1.06, "GBP": 1.22 },
+  "2023-11-01": { "ZWL": 0.0015, "EUR": 1.08, "GBP": 1.25 },
+  "2023-12-01": { "ZWL": 0.0014, "EUR": 1.09, "GBP": 1.26 },
+  "2024-01-01": { "ZWL": 0.0013, "EUR": 1.10, "GBP": 1.27 },
+  "2024-02-01": { "ZWL": 0.0012, "EUR": 1.08, "GBP": 1.26 },
+  "2024-03-01": { "ZWL": 0.0011, "EUR": 1.09, "GBP": 1.28 },
+  "2024-04-01": { "ZWL": 0.0010, "EUR": 1.08, "GBP": 1.25 },
+  "2024-05-01": { "ZWL": 0.0009, "EUR": 1.07, "GBP": 1.24 }
 };
 
 export interface ComplianceAnalysis {
@@ -35,14 +65,17 @@ export interface ComplianceAnalysis {
 export interface DataDiscrepancy {
   customsTransaction?: Transaction;
   financialTransaction?: Transaction;
-  discrepancyType: string; // Changed from specific types to allow for more fields
-  customsValue?: any; // Changed to any to support different value types
-  financialValue?: any; // Changed to any to support different value types
+  discrepancyType: string;
+  customsValue?: any;
+  financialValue?: any;
   percentageDifference: number;
   potentialCapitalFlight?: boolean;
-  field?: string; // Added field to identify which field has a discrepancy
-  severity?: 'high' | 'medium' | 'low'; // Added severity level for discrepancies
-  impact?: string; // Added description of potential impact
+  field?: string;
+  severity?: 'high' | 'medium' | 'low';
+  impact?: string;
+  resolutionStatus?: 'unresolved' | 'investigating' | 'resolved';
+  annotations?: string;
+  matchConfidence?: number;
 }
 
 export interface PenaltyCalculation {
@@ -55,6 +88,192 @@ export interface PenaltyCalculation {
   interestAmount: number;
   totalDue: number;
 }
+
+/**
+ * Validates a Zimbabwean TIN number
+ */
+export const isValidZimbabweanTIN = (tin: string): boolean => {
+  if (!tin) return false;
+  return ZW_TIN_REGEX.test(tin);
+};
+
+/**
+ * Calculate the Levenshtein distance between two strings
+ * for fuzzy matching company names
+ */
+export const levenshteinDistance = (a: string, b: string): number => {
+  const matrix = [];
+
+  // Increment along the first column of each row
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  // Increment each column in the first row
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill in the rest of the matrix
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+};
+
+/**
+ * Normalize a company name for better comparison
+ * Handles abbreviations, case variations, and special characters
+ */
+export const normalizeCompanyName = (name: string): string => {
+  if (!name) return '';
+  
+  // Convert to lowercase
+  let normalized = name.toLowerCase();
+  
+  // Remove special characters and extra spaces
+  normalized = normalized.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  // Handle common abbreviations
+  const abbreviations: Record<string, string> = {
+    'private': 'pvt',
+    'pvt': 'pvt',
+    'limited': 'ltd',
+    'ltd': 'ltd',
+    'incorporated': 'inc',
+    'inc': 'inc',
+    'corporation': 'corp',
+    'corp': 'corp',
+    'company': 'co',
+    'co': 'co'
+  };
+  
+  Object.entries(abbreviations).forEach(([full, abbr]) => {
+    normalized = normalized.replace(new RegExp(`\\b${full}\\b`, 'g'), abbr);
+  });
+  
+  return normalized;
+};
+
+/**
+ * Standardize date format to ISO 8601 (YYYY-MM-DD)
+ * Accepts multiple input formats
+ */
+export const standardizeDate = (dateInput: string | number): string => {
+  if (!dateInput) return '';
+  
+  // If it's already ISO format, just return it
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    return dateInput;
+  }
+  
+  try {
+    // Handle Excel numeric date
+    if (typeof dateInput === 'number') {
+      const excelDate = XLSX.SSF.parse_date_code(dateInput);
+      return `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+    }
+    
+    // Try to parse various date formats
+    const formats = [
+      // MM/DD/YYYY
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+      // DD/MM/YYYY
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+      // MM-DD-YYYY
+      /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+      // DD-MM-YYYY
+      /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+      // DD.MM.YYYY
+      /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/
+    ];
+    
+    for (const format of formats) {
+      const match = dateInput.toString().match(format);
+      if (match) {
+        const [_, part1, part2, year] = match;
+        
+        // Determine if month-first or day-first format
+        // This is a simplification - in a real app, you would use locale info
+        const isMonthFirst = format.toString().includes('MM/DD') || format.toString().includes('MM-DD');
+        
+        const month = isMonthFirst ? part1 : part2;
+        const day = isMonthFirst ? part2 : part1;
+        
+        // Validate month and day
+        const monthNum = parseInt(month, 10);
+        const dayNum = parseInt(day, 10);
+        
+        if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) {
+          continue; // Invalid date, try next format
+        }
+        
+        return `${year}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      }
+    }
+    
+    // If all else fails, try JavaScript's Date parsing
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (error) {
+    console.error("Error standardizing date:", error);
+  }
+  
+  return typeof dateInput === 'string' ? dateInput : '';
+};
+
+/**
+ * Validate Bill of Entry number format for Zimbabwe
+ * Format: ZW-[YEAR]-[6-digit-number]
+ */
+export const isValidBillOfEntry = (billNumber: string): boolean => {
+  if (!billNumber) return false;
+  
+  // Zimbabwe Bill of Entry format
+  const zwFormat = /^ZW-\d{4}-\d{6}$/;
+  
+  return zwFormat.test(billNumber);
+};
+
+/**
+ * Convert amount to USD based on exchange rates
+ */
+export const convertToUSD = (amount: number, currency: string, date: string): number => {
+  if (!amount || !currency || currency === 'USD') return amount;
+  
+  // Find closest date in exchange rates
+  const dateKeys = Object.keys(EXCHANGE_RATES).sort();
+  let closestDate = dateKeys[0];
+  
+  for (const key of dateKeys) {
+    if (key <= date) {
+      closestDate = key;
+    } else {
+      break;
+    }
+  }
+  
+  const rates = EXCHANGE_RATES[closestDate];
+  if (!rates || !rates[currency]) {
+    // Default to 1:1 if rate not found
+    return amount;
+  }
+  
+  return amount * rates[currency];
+};
 
 /**
  * Analyzes a list of transactions for compliance
@@ -202,15 +421,49 @@ export const analyzeCompliance = (transactions: Transaction[]): ComplianceAnalys
 };
 
 /**
+ * Clean and standardize transaction data
+ */
+export const cleanTransactionData = (transactions: Transaction[]): Transaction[] => {
+  // Create deep copy of transactions to avoid modifying originals
+  const cleanedTransactions = transactions.map(tx => ({...tx}));
+  
+  // Process and standardize each transaction
+  return cleanedTransactions.map(tx => {
+    // Standardize dates
+    tx.date = standardizeDate(tx.date);
+    
+    // Normalize company names
+    tx.entity = normalizeCompanyName(tx.entity);
+    
+    // Fill missing values
+    if (!tx.quantity && tx.amount && tx.unitPrice) {
+      tx.quantity = tx.amount / tx.unitPrice;
+    } else if (!tx.unitPrice && tx.amount && tx.quantity) {
+      tx.unitPrice = tx.amount / tx.quantity;
+    } else if (!tx.amount && tx.unitPrice && tx.quantity) {
+      tx.amount = tx.unitPrice * tx.quantity;
+    }
+    
+    // Ensure transaction type is standardized
+    tx.type = tx.type?.toLowerCase() === 'export' ? 'export' : 'import';
+    
+    return tx;
+  });
+};
+
+/**
  * Compare customs and financial transaction data to find discrepancies
- * Enhanced with more robust comparison and fuzzy matching
+ * Enhanced with fuzzy matching and multi-attribute matching algorithm
  */
 export const compareTransactionData = (transactions: Transaction[]): DataDiscrepancy[] => {
   const discrepancies: DataDiscrepancy[] = [];
   
+  // Clean and standardize the data first
+  const cleanedTransactions = cleanTransactionData(transactions);
+  
   // Separate customs and financial data
-  const customsTransactions = transactions.filter(t => t.source === 'customs');
-  const financialTransactions = transactions.filter(t => t.source === 'financial');
+  const customsTransactions = cleanedTransactions.filter(t => t.source === 'customs');
+  const financialTransactions = cleanedTransactions.filter(t => t.source === 'financial');
   
   // If we don't have both sources, return empty discrepancies
   if (customsTransactions.length === 0 || financialTransactions.length === 0) {
@@ -233,65 +486,89 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
     { name: "facilitator", label: "Transaction Facilitator", isNumeric: false, critical: false }
   ];
 
-  // Advanced matching algorithm - multi-pass approach
-  // First, match by company registration number (most reliable)
-  // Then, match by combination of entity name, date, and entry number
-  // Finally, match by entity name and date as fallback
+  // Track matched transaction IDs
+  const matchedTransactions = new Set<string>();
   
-  const matchedTransactions = new Set<string>(); // Track matched transaction IDs
-  
-  // First pass - match by company registration number
+  // First pass - match by PRIMARY KEY: Bill of Entry + TIN (highest confidence)
   customsTransactions.forEach(customsTx => {
-    if (!customsTx.regNumber) return; // Skip if no reg number
+    if (!customsTx.entryNumber || !customsTx.regNumber) return; // Skip if missing primary keys
     
     financialTransactions.forEach(financialTx => {
-      if (!financialTx.regNumber) return; // Skip if no reg number
+      if (!financialTx.entryNumber || !financialTx.regNumber) return; // Skip if missing primary keys
       
-      // Exact match on registration number and date proximity
-      if (customsTx.regNumber === financialTx.regNumber && customsTx.date === financialTx.date) {
-        compareTransactions(customsTx, financialTx, fieldsToCompare, discrepancies);
+      // Exact match on primary keys
+      if (customsTx.entryNumber === financialTx.entryNumber && 
+          customsTx.regNumber === financialTx.regNumber) {
+        
+        compareTransactions(customsTx, financialTx, fieldsToCompare, discrepancies, 100); // 100% confidence
         matchedTransactions.add(customsTx.id);
         matchedTransactions.add(financialTx.id);
       }
     });
   });
   
-  // Second pass - match by entity name, date, and entry number (for transactions not matched yet)
-  customsTransactions
-    .filter(tx => !matchedTransactions.has(tx.id))
-    .forEach(customsTx => {
-      const matchingFinancialTxs = financialTransactions
-        .filter(tx => !matchedTransactions.has(tx.id))
-        .filter(financialTx => 
-          customsTx.entity === financialTx.entity &&
-          customsTx.date === financialTx.date &&
-          customsTx.entryNumber === financialTx.entryNumber &&
-          customsTx.entryNumber !== undefined
-        );
-      
-      matchingFinancialTxs.forEach(financialTx => {
-        compareTransactions(customsTx, financialTx, fieldsToCompare, discrepancies);
-        matchedTransactions.add(customsTx.id);
-        matchedTransactions.add(financialTx.id);
-      });
-    });
+  // Second pass - match by SECONDARY KEYS: Date ±3 days + Company Name + Total Cost ±10%
+  const DATE_WINDOW = COMPLIANCE_RULES.DATE_MATCHING_WINDOW; // Days in either direction
+  const COST_TOLERANCE = 0.1; // 10% tolerance
   
-  // Third pass - fallback to entity name and date only
   customsTransactions
     .filter(tx => !matchedTransactions.has(tx.id))
     .forEach(customsTx => {
-      const matchingFinancialTxs = financialTransactions
-        .filter(tx => !matchedTransactions.has(tx.id))
-        .filter(financialTx => 
-          customsTx.entity === financialTx.entity &&
-          customsTx.date === financialTx.date
-        );
+      const customsDate = new Date(customsTx.date);
+      if (isNaN(customsDate.getTime())) return; // Skip if invalid date
       
-      matchingFinancialTxs.forEach(financialTx => {
-        compareTransactions(customsTx, financialTx, fieldsToCompare, discrepancies);
+      const matchCandidates = financialTransactions
+        .filter(tx => !matchedTransactions.has(tx.id))
+        .map(financialTx => {
+          const financialDate = new Date(financialTx.date);
+          if (isNaN(financialDate.getTime())) return null;
+          
+          // Calculate date difference in days
+          const dateDiffMs = Math.abs(customsDate.getTime() - financialDate.getTime());
+          const dateDiffDays = Math.floor(dateDiffMs / (1000 * 60 * 60 * 24));
+          
+          if (dateDiffDays > DATE_WINDOW) return null; // Date too far apart
+          
+          // Normalize company names and check similarity
+          const customsName = normalizeCompanyName(customsTx.entity);
+          const financialName = normalizeCompanyName(financialTx.entity);
+          
+          // Calculate similarity using Levenshtein distance
+          const nameDistance = levenshteinDistance(customsName, financialName);
+          const maxNameLength = Math.max(customsName.length, financialName.length);
+          const nameSimilarity = maxNameLength > 0 ? 1 - (nameDistance / maxNameLength) : 0;
+          
+          if (nameSimilarity < 0.7) return null; // Names too different
+          
+          // Check amount similarity if both amounts exist
+          let amountSimilarity = 0;
+          if (customsTx.amount && financialTx.amount) {
+            const minAmount = Math.min(customsTx.amount, financialTx.amount);
+            const maxAmount = Math.max(customsTx.amount, financialTx.amount);
+            amountSimilarity = minAmount / maxAmount;
+            
+            if (amountSimilarity < (1 - COST_TOLERANCE)) return null; // Amounts too different
+          }
+          
+          // Calculate overall match confidence
+          const dateScore = 1 - (dateDiffDays / (DATE_WINDOW + 1)); // 1.0 if same day, 0.0 if max days apart
+          const overallConfidence = (dateScore * 0.3) + (nameSimilarity * 0.5) + (amountSimilarity * 0.2);
+          
+          return {
+            financialTx,
+            confidence: Math.round(overallConfidence * 100) // As percentage
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b!.confidence - a!.confidence);
+      
+      // Match with the highest confidence candidate, if above threshold
+      const bestMatch = matchCandidates[0];
+      if (bestMatch && bestMatch.confidence >= 70) { // At least 70% confident
+        compareTransactions(customsTx, bestMatch.financialTx, fieldsToCompare, discrepancies, bestMatch.confidence);
         matchedTransactions.add(customsTx.id);
-        matchedTransactions.add(financialTx.id);
-      });
+        matchedTransactions.add(bestMatch.financialTx.id);
+      }
     });
   
   // Flag unmatched transactions - this could indicate completely missing declarations
@@ -308,7 +585,9 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
         potentialCapitalFlight: true,
         field: "Entire Transaction",
         severity: 'high',
-        impact: "Potential unreported financial transaction - major compliance issue"
+        impact: "Potential unreported financial transaction - major compliance issue",
+        resolutionStatus: 'unresolved',
+        matchConfidence: 0
       });
     });
   
@@ -325,7 +604,9 @@ export const compareTransactionData = (transactions: Transaction[]): DataDiscrep
         potentialCapitalFlight: true,
         field: "Entire Transaction",
         severity: 'high',
-        impact: "Potential unreported customs declaration - major compliance issue"
+        impact: "Potential unreported customs declaration - major compliance issue",
+        resolutionStatus: 'unresolved',
+        matchConfidence: 0
       });
     });
   
@@ -339,7 +620,8 @@ const compareTransactions = (
   customsTx: Transaction, 
   financialTx: Transaction,
   fieldsToCompare: Array<{name: string, label: string, isNumeric: boolean, critical: boolean}>,
-  discrepancies: DataDiscrepancy[]
+  discrepancies: DataDiscrepancy[],
+  matchConfidence: number = 100
 ) => {
   // Compare each field with strict validation
   fieldsToCompare.forEach(field => {
@@ -375,7 +657,9 @@ const compareTransactions = (
         field: field.label,
         potentialCapitalFlight: field.name === "amount" || field.name === "currency" ? true : false,
         severity,
-        impact
+        impact,
+        resolutionStatus: 'unresolved',
+        matchConfidence
       });
       return;
     }
@@ -394,7 +678,14 @@ const compareTransactions = (
         const max = Math.max(numericCustomsValue, numericFinancialValue);
         const min = Math.min(numericCustomsValue, numericFinancialValue);
         percentageDiff = min > 0 ? (diff / min) * 100 : (max > 0 ? 100 : 0);
-        isDifferent = percentageDiff > COMPLIANCE_RULES.PRICE_TOLERANCE * 100;
+        
+        // Determine threshold based on field
+        let threshold = COMPLIANCE_RULES.PRICE_TOLERANCE.GREEN * 100;
+        if (field.name === 'unitPrice') {
+          threshold = 5; // 5% threshold for unit price as specified in requirements
+        }
+        
+        isDifferent = percentageDiff > threshold;
         
         // Special handling for total amount - always flag difference in financial values
         if (field.name === "amount" && diff > 0) {
@@ -406,9 +697,20 @@ const compareTransactions = (
         percentageDiff = 100;
       }
     } else {
-      // For non-numeric fields, any difference is a discrepancy - strict string comparison
-      isDifferent = String(customsValue).trim() !== String(financialValue).trim();
-      percentageDiff = isDifferent ? 100 : 0; // 100% different if strings don't match
+      // For non-numeric fields, check using appropriate matcher
+      if (field.name === 'entity') {
+        // Use fuzzy matching for company names
+        const customsName = normalizeCompanyName(String(customsValue));
+        const financialName = normalizeCompanyName(String(financialValue));
+        const distance = levenshteinDistance(customsName, financialName);
+        
+        isDifferent = distance > COMPLIANCE_RULES.STRING_TOLERANCE;
+        percentageDiff = isDifferent ? 100 : 0;
+      } else {
+        // For other string fields, exact match required
+        isDifferent = String(customsValue).trim() !== String(financialValue).trim();
+        percentageDiff = isDifferent ? 100 : 0;
+      }
     }
     
     // Add discrepancy if difference detected
@@ -420,26 +722,32 @@ const compareTransactions = (
         (field.name === 'currency' && customsValue !== financialValue);
       
       // Determine severity based on field importance and difference percentage
-      let severity: 'high' | 'medium' | 'low' = 'medium';
+      let severity: 'high' | 'medium' | 'low';
       let impact = "";
       
-      if (field.name === 'currency') {
-        severity = 'high';
-        impact = "Currency mismatch - high risk of fraudulent transaction or money laundering";
-      } else if (field.name === 'amount' || field.name === 'unitPrice') {
-        if (percentageDiff > 10) {
+      if (field.isNumeric) {
+        // Use the variance thresholds from requirements
+        if (percentageDiff <= 5) {
+          severity = 'low';
+          impact = `Minor ${field.label} difference (${percentageDiff.toFixed(2)}%), within acceptable range`;
+        } else if (percentageDiff <= 15) {
+          severity = 'medium';
+          impact = `Significant ${field.label} difference (${percentageDiff.toFixed(2)}%) requires investigation`;
+        } else {
           severity = 'high';
-          impact = `Significant ${field.label} difference (${percentageDiff.toFixed(2)}%) indicates possible financial fraud`;
+          impact = `Major ${field.label} difference (${percentageDiff.toFixed(2)}%) indicates possible financial fraud`;
+        }
+      } else {
+        if (field.name === 'currency') {
+          severity = 'high';
+          impact = "Currency mismatch - high risk of fraudulent transaction or money laundering";
+        } else if (field.name === 'entryNumber' || field.name === 'regNumber') {
+          severity = 'high';
+          impact = `Critical identifier mismatch in ${field.label} - possible fraudulent documentation`;
         } else {
           severity = 'medium';
-          impact = `${field.label} difference of ${percentageDiff.toFixed(2)}% requires investigation`;
+          impact = `Discrepancy in ${field.label} data`;
         }
-      } else if (field.name === 'entryNumber' || field.name === 'regNumber') {
-        severity = 'high';
-        impact = `Critical identifier mismatch in ${field.label} - possible fraudulent documentation`;
-      } else {
-        severity = 'low';
-        impact = `Minor discrepancy in ${field.label} data`;
       }
       
       discrepancies.push({
@@ -452,38 +760,12 @@ const compareTransactions = (
         potentialCapitalFlight,
         field: field.label,
         severity,
-        impact
+        impact,
+        resolutionStatus: 'unresolved',
+        matchConfidence
       });
     }
   });
-};
-
-/**
- * Determine if two transactions are related enough to compare
- */
-const areRelatedTransactions = (tx1: Transaction, tx2: Transaction): boolean => {
-  // Consider transactions related if:
-  // 1. Same entity name
-  // 2. Same transaction date or close (within 3 days)
-  // 3. Same currency
-  // 4. Similar product/description
-  
-  // Check entity name
-  if (tx1.entity !== tx2.entity) return false;
-  
-  // Check currency
-  if (tx1.currency !== tx2.currency) return false;
-  
-  // Check product similarity
-  const productMatch = tx1.product === tx2.product || 
-    (tx1.product && tx2.product && 
-     (tx1.product.includes(tx2.product) || tx2.product.includes(tx1.product)));
-  
-  if (!productMatch) return false;
-  
-  // Check date proximity (simplistic implementation - in real app would use proper date comparison)
-  // For this demo we'll just check if the date strings match
-  return tx1.date === tx2.date;
 };
 
 /**
@@ -527,6 +809,8 @@ export const formatDiscrepanciesForExport = (discrepancies: DataDiscrepancy[]): 
       "Potential Capital Flight": d.potentialCapitalFlight ? "Yes" : "No",
       "Severity": d.severity || "Medium",
       "Impact": d.impact || "",
+      "Match Confidence": `${d.matchConfidence || 0}%`,
+      "Resolution Status": d.resolutionStatus || "Unresolved",
       "Bank Used": customsTx?.bank || financialTx?.bank,
       "Import/Export Description": customsTx?.product || financialTx?.product,
       "Currency": customsTx?.currency || financialTx?.currency,

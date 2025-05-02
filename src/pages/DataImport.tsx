@@ -4,7 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import ImportForm from "@/components/data/ImportForm";
 import TransactionTable, { Transaction } from "@/components/dashboard/TransactionTable";
 import DataComplianceAnalytics from "@/components/analytics/DataComplianceAnalytics";
-import { analyzeCompliance, compareTransactionData, formatDiscrepanciesForExport } from "@/services/analyticsService";
+import { 
+  analyzeCompliance, 
+  compareTransactionData, 
+  formatDiscrepanciesForExport,
+  DataDiscrepancy 
+} from "@/services/analyticsService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,6 +26,7 @@ const DataImport: React.FC = () => {
   const [userRole, setUserRole] = useState<string>("regulator");
   const [userName, setUserName] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
+  const [discrepancies, setDiscrepancies] = useState<DataDiscrepancy[]>([]);
 
   // Get user info from localStorage if available
   useEffect(() => {
@@ -38,22 +44,26 @@ const DataImport: React.FC = () => {
     if (customsData.length > 0 || financialData.length > 0) {
       console.log("Analyzing data - Customs:", customsData.length, "Financial:", financialData.length);
       
-      // Merge data for comparison
+      // Merge data for compliance analysis
       const allData = [...customsData, ...financialData];
       const analysis = analyzeCompliance(allData);
       setComparisonResults(analysis);
       
-      // Switch to analytics tab after import if we have enough data to compare
+      // Get detailed discrepancies with enhanced matching
       if (customsData.length > 0 && financialData.length > 0) {
+        const detailedDiscrepancies = compareTransactionData(allData);
+        setDiscrepancies(detailedDiscrepancies);
+        
+        // Switch to analytics tab after import if we have enough data to compare
         console.log("Both data sources available, showing comparison");
         setActiveTab("analytics");
         
         // Show detailed summary of the comparison
-        const discrepancies = analysis.dataDiscrepancies?.length || 0;
+        const discrepancyCount = detailedDiscrepancies.length || 0;
         
-        if (discrepancies > 0) {
+        if (discrepancyCount > 0) {
           toast.warning(
-            `Data comparison complete: ${discrepancies} discrepancies found!`,
+            `Data comparison complete: ${discrepancyCount} discrepancies found!`,
             {
               description: `Compliance rate: ${analysis.complianceRate.toFixed(1)}%. Review the discrepancies in the Analytics tab.`,
             }
@@ -67,7 +77,7 @@ const DataImport: React.FC = () => {
               userRole,
               "Data Discrepancies Detected",
               AuditModules.DATA_IMPORT,
-              `${discrepancies} data discrepancies found with compliance rate of ${analysis.complianceRate.toFixed(1)}%`
+              `${discrepancyCount} data discrepancies found with compliance rate of ${analysis.complianceRate.toFixed(1)}%`
             );
           }
         } else {
@@ -152,14 +162,45 @@ const DataImport: React.FC = () => {
     }
   };
 
+  // Handle discrepancy update from reconciliation interface
+  const handleDiscrepancyUpdate = (updatedDiscrepancy: DataDiscrepancy) => {
+    // Update the discrepancies state with the updated item
+    const updatedDiscrepancies = discrepancies.map(d => 
+      (d.customsTransaction?.id === updatedDiscrepancy.customsTransaction?.id && 
+       d.financialTransaction?.id === updatedDiscrepancy.financialTransaction?.id)
+        ? updatedDiscrepancy
+        : d
+    );
+    
+    setDiscrepancies(updatedDiscrepancies);
+    
+    // Update the comparisonResults state to include the updated discrepancies
+    setComparisonResults(prev => ({
+      ...prev,
+      dataDiscrepancies: updatedDiscrepancies
+    }));
+    
+    // Log this event to audit trail
+    if (userId) {
+      createAuditLog(
+        userId,
+        userName,
+        userRole,
+        AuditActions.DATA_UPDATE,
+        AuditModules.DATA_IMPORT,
+        `Updated discrepancy resolution status to '${updatedDiscrepancy.resolutionStatus}' for ${updatedDiscrepancy.customsTransaction?.entity || updatedDiscrepancy.financialTransaction?.entity}`
+      );
+    }
+  };
+
   const exportVarianceReport = () => {
-    if (!comparisonResults.dataDiscrepancies || comparisonResults.dataDiscrepancies.length === 0) {
+    if (!discrepancies || discrepancies.length === 0) {
       toast.error("No discrepancies to export");
       return;
     }
 
     // Format data for export using the utility function
-    const exportData = formatDiscrepanciesForExport(comparisonResults.dataDiscrepancies);
+    const exportData = formatDiscrepanciesForExport(discrepancies);
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -180,7 +221,7 @@ const DataImport: React.FC = () => {
         userRole,
         AuditActions.DATA_EXPORT,
         AuditModules.DATA_IMPORT,
-        `Exported variance report with ${comparisonResults.dataDiscrepancies.length} discrepancies to file: ${filename}`
+        `Exported variance report with ${discrepancies.length} discrepancies to file: ${filename}`
       );
     }
   };
@@ -197,11 +238,14 @@ const DataImport: React.FC = () => {
     // Re-run the analysis with fresh data
     const allData = [...customsData, ...financialData];
     const analysis = analyzeCompliance(allData);
-    setComparisonResults(analysis);
+    const detailedDiscrepancies = compareTransactionData(allData);
     
-    const discrepancies = analysis.dataDiscrepancies?.length || 0;
+    setComparisonResults(analysis);
+    setDiscrepancies(detailedDiscrepancies);
+    
+    const discrepancyCount = detailedDiscrepancies.length;
     toast.success(
-      `Data reanalysis complete: ${discrepancies} discrepancies found`,
+      `Data reanalysis complete: ${discrepancyCount} discrepancies found`,
       {
         description: `Compliance rate: ${analysis.complianceRate.toFixed(1)}%`,
       }
@@ -215,10 +259,20 @@ const DataImport: React.FC = () => {
         userRole,
         "Data Reanalysis",
         AuditModules.DATA_IMPORT,
-        `Manually triggered reanalysis of ${allData.length} transactions, found ${discrepancies} discrepancies`
+        `Manually triggered reanalysis of ${allData.length} transactions, found ${discrepancyCount} discrepancies`
       );
     }
   };
+
+  // Set up comparisonResults with discrepancies
+  useEffect(() => {
+    if (discrepancies.length > 0) {
+      setComparisonResults(prev => ({
+        ...prev,
+        dataDiscrepancies: discrepancies
+      }));
+    }
+  }, [discrepancies]);
 
   return (
     <div className="p-6 space-y-6">
@@ -238,7 +292,7 @@ const DataImport: React.FC = () => {
             </Button>
           )}
           
-          {comparisonResults.dataDiscrepancies && comparisonResults.dataDiscrepancies.length > 0 && (
+          {discrepancies.length > 0 && (
             <Button variant="outline" onClick={exportVarianceReport} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export Variance Report
@@ -287,7 +341,14 @@ const DataImport: React.FC = () => {
         
         <TabsContent value="analytics">
           {(customsData.length > 0 || financialData.length > 0) && (
-            <DataComplianceAnalytics analysis={comparisonResults} userRole={userRole} />
+            <DataComplianceAnalytics 
+              analysis={{
+                ...comparisonResults,
+                dataDiscrepancies: discrepancies
+              }} 
+              userRole={userRole}
+              onDiscrepancyUpdate={handleDiscrepancyUpdate}
+            />
           )}
         </TabsContent>
         
