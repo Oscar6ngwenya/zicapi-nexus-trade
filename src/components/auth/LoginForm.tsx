@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { KeyIcon, UserIcon, Shield } from "lucide-react";
-import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
+import { createAuditLog, AuditActions, AuditModules, RiskLevels } from "@/services/auditService";
 
 interface LoginFormProps {
   onLoginSuccess: (userData: {
@@ -91,14 +91,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           name: user.name,
         }));
         
-        // Create audit log for successful login
+        // Create audit log for successful login with enhanced data
         createAuditLog(
           user.id,
           user.username,
           user.role,
           AuditActions.LOGIN,
           AuditModules.AUTH,
-          `User logged in successfully as ${user.role}`
+          `User logged in successfully as ${user.role}`,
+          {
+            isLoginAttempt: true,
+            loginSuccess: true,
+            riskLevel: 'low'
+          }
         );
         
         onLoginSuccess({
@@ -116,14 +121,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           description: "Invalid username, password, or role.",
         });
         
-        // Log failed login attempt with limited information
+        // Log failed login attempt with enhanced data
         createAuditLog(
           "unknown",
           username || "unknown",
           userRole || "unknown",
-          "Failed Login Attempt",
+          AuditActions.LOGIN_FAILED,
           AuditModules.AUTH,
-          `Failed login attempt with username '${username}' and role '${userRole}'`
+          `Failed login attempt with username '${username}' and role '${userRole}'`,
+          {
+            isLoginAttempt: true,
+            loginSuccess: false,
+            riskLevel: 'high'
+          }
         );
       }
       setIsLoading(false);
