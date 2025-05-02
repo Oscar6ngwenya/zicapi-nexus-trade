@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { toast } from "sonner";
+import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
 
 const MainLayout: React.FC = () => {
   const [user, setUser] = useState<{
@@ -13,20 +14,67 @@ const MainLayout: React.FC = () => {
   } | null>(null);
   
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check if user is authenticated
     const storedUser = localStorage.getItem("zicapi-user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      
+      // Log page navigation for audit trail
+      if (userData) {
+        const pathSegments = location.pathname.split("/");
+        const pageName = pathSegments[1] || "dashboard";
+        const moduleMap: Record<string, string> = {
+          "dashboard": AuditModules.DASHBOARD,
+          "data-import": AuditModules.DATA_IMPORT,
+          "extensions": AuditModules.EXTENSIONS,
+          "acquittals": AuditModules.ACQUITTALS,
+          "compliance": AuditModules.COMPLIANCE,
+          "reports": AuditModules.REPORTS,
+          "penalties": AuditModules.PENALTIES,
+          "users": AuditModules.USERS,
+          "financial-institutions": AuditModules.FINANCIAL,
+          "audit-trail": "Audit Trail"
+        };
+        
+        // Only log navigation to main pages, not initial load
+        if (pageName && location.key !== "default") {
+          createAuditLog(
+            userData.id,
+            userData.username,
+            userData.role,
+            "Page View",
+            moduleMap[pageName] || pageName.charAt(0).toUpperCase() + pageName.slice(1),
+            `User accessed the ${moduleMap[pageName] || pageName} page`
+          );
+        }
+      }
     } else {
       navigate("/");
     }
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleLogout = () => {
+    // Log the logout action
+    if (user) {
+      createAuditLog(
+        user.id,
+        user.username,
+        user.role,
+        AuditActions.LOGOUT,
+        AuditModules.AUTH,
+        "User logged out of the system"
+      );
+    }
+    
+    // Clear user data and navigate to login
     setUser(null);
+    localStorage.removeItem("zicapi-user");
     navigate("/");
+    toast.info("You have been logged out");
   };
 
   // Show loading state while checking authentication

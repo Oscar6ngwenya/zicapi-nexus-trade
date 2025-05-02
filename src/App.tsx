@@ -14,6 +14,7 @@ import Compliance from "./pages/Compliance";
 import Users from "./pages/Users";
 import Penalties from "./pages/Penalties";
 import FinancialInstitutions from "./pages/FinancialInstitutions";
+import AuditTrail from "./pages/AuditTrail";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
@@ -52,6 +53,14 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
                       <FinancialInstitutions />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/audit-trail" 
+                  element={
+                    <ProtectedRoute allowedRoles={["admin", "regulator"]}>
+                      <AuditTrail />
                     </ProtectedRoute>
                   } 
                 />

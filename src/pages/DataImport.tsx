@@ -8,9 +8,10 @@ import { analyzeCompliance, compareTransactionData, formatDiscrepanciesForExport
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Download } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
+import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
 
 const DataImport: React.FC = () => {
   const [customsData, setCustomsData] = useState<Transaction[]>([]);
@@ -18,13 +19,17 @@ const DataImport: React.FC = () => {
   const [comparisonResults, setComparisonResults] = useState(analyzeCompliance([]));
   const [activeTab, setActiveTab] = useState("import");
   const [userRole, setUserRole] = useState<string>("regulator");
+  const [userName, setUserName] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
 
-  // Get user role from localStorage if available
+  // Get user info from localStorage if available
   useEffect(() => {
     const storedUser = localStorage.getItem("zicapi-user");
     if (storedUser) {
       const user = JSON.parse(storedUser);
       setUserRole(user.role);
+      setUserName(user.username);
+      setUserId(user.id);
     }
   }, []);
 
@@ -53,6 +58,18 @@ const DataImport: React.FC = () => {
               description: `Compliance rate: ${analysis.complianceRate.toFixed(1)}%. Review the discrepancies in the Analytics tab.`,
             }
           );
+          
+          // Log this event to audit trail
+          if (userId) {
+            createAuditLog(
+              userId,
+              userName,
+              userRole,
+              "Data Discrepancies Detected",
+              AuditModules.DATA_IMPORT,
+              `${discrepancies} data discrepancies found with compliance rate of ${analysis.complianceRate.toFixed(1)}%`
+            );
+          }
         } else {
           toast.info(
             `Data comparison complete: ${analysis.complianceRate.toFixed(1)}% match rate`,
@@ -60,10 +77,22 @@ const DataImport: React.FC = () => {
               description: `No discrepancies found between customs and financial data`,
             }
           );
+          
+          // Log this event to audit trail
+          if (userId) {
+            createAuditLog(
+              userId,
+              userName,
+              userRole,
+              "Data Match Confirmed",
+              AuditModules.DATA_IMPORT,
+              `No discrepancies found, 100% compliance rate between customs and financial data`
+            );
+          }
         }
       }
     }
-  }, [customsData, financialData]);
+  }, [customsData, financialData, userId, userName, userRole]);
 
   const handleImportComplete = (data: Transaction[]) => {
     console.log("Import complete, received data:", data);
@@ -74,17 +103,53 @@ const DataImport: React.FC = () => {
       toast.success("Customs data imported", {
         description: `${data.length} customs records added to the system`,
       });
+      
+      // Log this event to audit trail
+      if (userId) {
+        createAuditLog(
+          userId,
+          userName,
+          userRole,
+          AuditActions.DATA_IMPORT,
+          AuditModules.DATA_IMPORT,
+          `Imported ${data.length} customs transactions`
+        );
+      }
     } else {
       setFinancialData(prevData => [...data, ...prevData]);
       toast.success("Financial institution data imported", {
         description: `${data.length} financial records added to the system`,
       });
+      
+      // Log this event to audit trail
+      if (userId) {
+        createAuditLog(
+          userId,
+          userName,
+          userRole,
+          AuditActions.DATA_IMPORT,
+          AuditModules.DATA_IMPORT,
+          `Imported ${data.length} financial transactions`
+        );
+      }
     }
   };
 
   const handleViewDetails = (id: string) => {
     toast.info(`Viewing details for transaction ${id}`);
     // In a real application, navigate to detail page
+    
+    // Log this event to audit trail
+    if (userId) {
+      createAuditLog(
+        userId,
+        userName,
+        userRole,
+        AuditActions.DATA_VIEW,
+        AuditModules.DATA_IMPORT,
+        `Viewed transaction details for ID: ${id}`
+      );
+    }
   };
 
   const exportVarianceReport = () => {
@@ -102,9 +167,57 @@ const DataImport: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Data Variance Report");
 
     // Generate download
-    XLSX.writeFile(wb, `data-variance-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const filename = `data-variance-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
     
     toast.success("Variance report exported successfully");
+    
+    // Log this event to audit trail
+    if (userId) {
+      createAuditLog(
+        userId,
+        userName,
+        userRole,
+        AuditActions.DATA_EXPORT,
+        AuditModules.DATA_IMPORT,
+        `Exported variance report with ${comparisonResults.dataDiscrepancies.length} discrepancies to file: ${filename}`
+      );
+    }
+  };
+  
+  // Force comparison reanalysis
+  const reanalyzeData = () => {
+    if (customsData.length === 0 || financialData.length === 0) {
+      toast.error("Cannot reanalyze - need both customs and financial data");
+      return;
+    }
+    
+    toast.info("Reanalyzing data...");
+    
+    // Re-run the analysis with fresh data
+    const allData = [...customsData, ...financialData];
+    const analysis = analyzeCompliance(allData);
+    setComparisonResults(analysis);
+    
+    const discrepancies = analysis.dataDiscrepancies?.length || 0;
+    toast.success(
+      `Data reanalysis complete: ${discrepancies} discrepancies found`,
+      {
+        description: `Compliance rate: ${analysis.complianceRate.toFixed(1)}%`,
+      }
+    );
+    
+    // Log this event to audit trail
+    if (userId) {
+      createAuditLog(
+        userId,
+        userName,
+        userRole,
+        "Data Reanalysis",
+        AuditModules.DATA_IMPORT,
+        `Manually triggered reanalysis of ${allData.length} transactions, found ${discrepancies} discrepancies`
+      );
+    }
   };
 
   return (
@@ -117,12 +230,21 @@ const DataImport: React.FC = () => {
           </p>
         </div>
         
-        {comparisonResults.dataDiscrepancies && comparisonResults.dataDiscrepancies.length > 0 && (
-          <Button variant="outline" onClick={exportVarianceReport} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export Variance Report
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {(customsData.length > 0 && financialData.length > 0) && (
+            <Button variant="outline" onClick={reanalyzeData} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Reanalyze Data
+            </Button>
+          )}
+          
+          {comparisonResults.dataDiscrepancies && comparisonResults.dataDiscrepancies.length > 0 && (
+            <Button variant="outline" onClick={exportVarianceReport} className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export Variance Report
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

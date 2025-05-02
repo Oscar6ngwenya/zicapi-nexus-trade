@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Table,
   TableBody,
@@ -9,11 +9,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataDiscrepancy, formatDiscrepanciesForExport } from "@/services/analyticsService";
-import { AlertTriangle, Download, FileWarning } from "lucide-react";
+import { AlertTriangle, Download, FileWarning, AlertCircle, Filter, Trash2, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
 
 interface DataDiscrepancyTableProps {
   discrepancies: DataDiscrepancy[];
@@ -24,6 +32,10 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
   discrepancies,
   userRole = "regulator" 
 }) => {
+  const [filteredDiscrepancies, setFilteredDiscrepancies] = useState<DataDiscrepancy[]>(discrepancies);
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [potentialFlightFilter, setPotentialFlightFilter] = useState<string>("all");
+  
   // Function to format currency
   const formatCurrency = (amount: number | string, currency: string) => {
     if (typeof amount === 'number') {
@@ -73,13 +85,13 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
 
   // Export discrepancies to Excel
   const exportToExcel = () => {
-    if (discrepancies.length === 0) {
+    if (filteredDiscrepancies.length === 0) {
       toast.error("No data to export");
       return;
     }
 
     // Use the utility function for formatting export data
-    const exportData = formatDiscrepanciesForExport(discrepancies);
+    const exportData = formatDiscrepanciesForExport(filteredDiscrepancies);
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -87,9 +99,49 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
     XLSX.utils.book_append_sheet(wb, ws, "Discrepancies");
 
     // Generate download
-    XLSX.writeFile(wb, `data-discrepancies-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const filename = `data-discrepancies-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
     
     toast.success("Variance report exported successfully");
+    
+    // Log audit for export
+    const storedUser = localStorage.getItem("zicapi-user");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      createAuditLog(
+        user.id,
+        user.username,
+        user.role,
+        AuditActions.DATA_EXPORT,
+        AuditModules.DATA_IMPORT,
+        `Exported ${filteredDiscrepancies.length} data discrepancies to Excel file: ${filename}`
+      );
+    }
+  };
+
+  // Apply filters
+  React.useEffect(() => {
+    let result = [...discrepancies];
+    
+    // Apply severity filter
+    if (severityFilter !== "all") {
+      result = result.filter(d => d.severity === severityFilter);
+    }
+    
+    // Apply potential capital flight filter
+    if (potentialFlightFilter === "yes") {
+      result = result.filter(d => d.potentialCapitalFlight === true);
+    } else if (potentialFlightFilter === "no") {
+      result = result.filter(d => d.potentialCapitalFlight === false);
+    }
+    
+    setFilteredDiscrepancies(result);
+  }, [discrepancies, severityFilter, potentialFlightFilter]);
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSeverityFilter("all");
+    setPotentialFlightFilter("all");
   };
 
   // Check if user can export (not a bank role)
@@ -124,28 +176,81 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
     return value;
   };
 
+  // Get severity badge color
+  const getSeverityColor = (severity?: string) => {
+    switch (severity) {
+      case 'high': return "bg-red-100 text-red-800 border-red-300";
+      case 'medium': return "bg-amber-100 text-amber-800 border-amber-300";
+      case 'low': return "bg-blue-100 text-blue-800 border-blue-300";
+      default: return "bg-gray-100 text-gray-800 border-gray-300";
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-800 rounded-md border border-amber-200">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
           <p>
-            The following discrepancies were found between customs and financial data. 
+            {filteredDiscrepancies.length} discrepancies found between customs and financial data. 
             These inconsistencies require investigation.
           </p>
         </div>
         
-        {canExport && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-2"
-            onClick={exportToExcel}
-          >
-            <Download className="h-4 w-4" />
-            Export Variance Report
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canExport && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={exportToExcel}
+            >
+              <Download className="h-4 w-4" />
+              Export Report
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter controls */}
+      <div className="bg-slate-50 p-3 rounded-md border flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+          <span className="text-sm font-medium">Filters:</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm">Severity:</span>
+          <Select value={severityFilter} onValueChange={setSeverityFilter}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm">Capital Flight:</span>
+          <Select value={potentialFlightFilter} onValueChange={setPotentialFlightFilter}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="yes">Yes</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 px-2">
+          <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+        </Button>
       </div>
 
       <div className="border rounded-md overflow-x-auto">
@@ -155,49 +260,82 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
               <TableHead>Entity</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Discrepancy Field</TableHead>
+              <TableHead>Severity</TableHead>
               <TableHead className="text-right">Customs Value</TableHead>
               <TableHead className="text-right">Financial Value</TableHead>
               <TableHead className="text-right">% Difference</TableHead>
-              <TableHead>Product</TableHead>
+              <TableHead>Capital Flight Risk</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {discrepancies.map((discrepancy, index) => {
-              // Determine severity based on percentage difference
-              const getSeverityClass = () => {
-                if (discrepancy.percentageDifference > 15) return "bg-red-50 hover:bg-red-100";
-                if (discrepancy.percentageDifference > 5) return "bg-amber-50 hover:bg-amber-100";
-                return "hover:bg-red-50";
-              };
-              
-              const entity = discrepancy.customsTransaction?.entity || discrepancy.financialTransaction?.entity || "Unknown";
-              const date = discrepancy.customsTransaction?.date || discrepancy.financialTransaction?.date || "Unknown";
-              const product = discrepancy.customsTransaction?.product || discrepancy.financialTransaction?.product || "Unknown";
-              
-              return (
-                <TableRow key={index} className={getSeverityClass()}>
-                  <TableCell className="font-medium">
-                    {entity}
-                  </TableCell>
-                  <TableCell>{formatDate(date)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-red-50 text-red-800">
-                      {getDiscrepancyTypeLabel(discrepancy.discrepancyType, discrepancy.field)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatValue(discrepancy, true)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatValue(discrepancy, false)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-red-700">
-                    {discrepancy.percentageDifference.toFixed(2)}%
-                  </TableCell>
-                  <TableCell>{product}</TableCell>
-                </TableRow>
-              );
-            })}
+            {filteredDiscrepancies.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  No discrepancies found matching your criteria
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredDiscrepancies.map((discrepancy, index) => {
+                // Determine severity based on percentage difference and field type
+                const getSeverityClass = () => {
+                  if (discrepancy.severity === 'high') return "bg-red-50 hover:bg-red-100";
+                  if (discrepancy.severity === 'medium') return "bg-amber-50 hover:bg-amber-100";
+                  return "bg-slate-50 hover:bg-slate-100";
+                };
+                
+                const entity = discrepancy.customsTransaction?.entity || discrepancy.financialTransaction?.entity || "Unknown";
+                const date = discrepancy.customsTransaction?.date || discrepancy.financialTransaction?.date || "Unknown";
+                
+                return (
+                  <TableRow key={index} className={getSeverityClass()}>
+                    <TableCell className="font-medium">
+                      {entity}
+                      {discrepancy.customsTransaction?.regNumber && (
+                        <div className="text-xs text-muted-foreground">
+                          Reg: {discrepancy.customsTransaction.regNumber}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatDate(date)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-slate-100 font-medium">
+                        {getDiscrepancyTypeLabel(discrepancy.discrepancyType, discrepancy.field)}
+                      </Badge>
+                      {discrepancy.impact && (
+                        <div className="text-xs mt-1 text-slate-600 max-w-[200px]">
+                          {discrepancy.impact}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getSeverityColor(discrepancy.severity)}>
+                        {discrepancy.severity || 'Medium'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatValue(discrepancy, true)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatValue(discrepancy, false)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-red-700">
+                      {discrepancy.percentageDifference.toFixed(2)}%
+                    </TableCell>
+                    <TableCell>
+                      {discrepancy.potentialCapitalFlight ? (
+                        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                          <AlertCircle className="h-3 w-3 mr-1" /> Yes
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                          No
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { KeyIcon, UserIcon, Shield } from "lucide-react";
+import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
 
 interface LoginFormProps {
   onLoginSuccess: (userData: {
@@ -90,6 +91,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           name: user.name,
         }));
         
+        // Create audit log for successful login
+        createAuditLog(
+          user.id,
+          user.username,
+          user.role,
+          AuditActions.LOGIN,
+          AuditModules.AUTH,
+          `User logged in successfully as ${user.role}`
+        );
+        
         onLoginSuccess({
           id: user.id,
           username: user.username,
@@ -104,6 +115,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         toast.error("Login failed", {
           description: "Invalid username, password, or role.",
         });
+        
+        // Log failed login attempt with limited information
+        createAuditLog(
+          "unknown",
+          username || "unknown",
+          userRole || "unknown",
+          "Failed Login Attempt",
+          AuditModules.AUTH,
+          `Failed login attempt with username '${username}' and role '${userRole}'`
+        );
       }
       setIsLoading(false);
     }, 1000);
