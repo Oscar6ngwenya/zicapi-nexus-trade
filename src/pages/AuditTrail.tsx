@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -65,28 +64,28 @@ const AuditTrail: React.FC = () => {
       );
     }
 
-    if (filters.userRole) {
+    if (filters.userRole && filters.userRole !== "all") {
       result = result.filter(log => log.userRole === filters.userRole);
     }
 
-    if (filters.module) {
+    if (filters.module && filters.module !== "all") {
       result = result.filter(log => log.module === filters.module);
     }
 
-    if (filters.action) {
+    if (filters.action && filters.action !== "all") {
       result = result.filter(log => log.action === filters.action);
     }
     
-    if (filters.riskLevel) {
+    if (filters.riskLevel && filters.riskLevel !== "all") {
       result = result.filter(log => log.riskLevel === filters.riskLevel);
     }
     
-    if (filters.isLoginAttempt) {
+    if (filters.isLoginAttempt && filters.isLoginAttempt !== "all") {
       const isLogin = filters.isLoginAttempt === "true";
       result = result.filter(log => log.isLoginAttempt === isLogin);
     }
     
-    if (filters.isLogout) {
+    if (filters.isLogout && filters.isLogout !== "all") {
       const isLogout = filters.isLogout === "true";
       result = result.filter(log => log.isLogout === isLogout);
     }
@@ -375,7 +374,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Roles</SelectItem>
+                  <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="admin">Administrator</SelectItem>
                   <SelectItem value="regulator">Regulator</SelectItem>
                   <SelectItem value="bank">Bank</SelectItem>
@@ -395,7 +394,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select module" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Modules</SelectItem>
+                  <SelectItem value="all">All Modules</SelectItem>
                   {Object.values(AuditModules).map((module) => (
                     <SelectItem key={module} value={module}>{module}</SelectItem>
                   ))}
@@ -413,7 +412,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select action" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Actions</SelectItem>
+                  <SelectItem value="all">All Actions</SelectItem>
                   {Object.values(AuditActions).map((action) => (
                     <SelectItem key={action} value={action}>{action}</SelectItem>
                   ))}
@@ -431,7 +430,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select risk level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Risk Levels</SelectItem>
+                  <SelectItem value="all">All Risk Levels</SelectItem>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -449,7 +448,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select event type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Events</SelectItem>
+                  <SelectItem value="all">All Events</SelectItem>
                   <SelectItem value="true">Login Attempts</SelectItem>
                   <SelectItem value="false">Other Events</SelectItem>
                 </SelectContent>
@@ -482,7 +481,7 @@ const AuditTrail: React.FC = () => {
                   <SelectValue placeholder="Select event type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Events</SelectItem>
+                  <SelectItem value="all">All Events</SelectItem>
                   <SelectItem value="true">Logout Events</SelectItem>
                   <SelectItem value="false">Other Events</SelectItem>
                 </SelectContent>

@@ -37,8 +37,8 @@ const AuditTrailSettings: React.FC = () => {
     const filters: any = {};
     
     if (username) filters.username = username;
-    if (module) filters.module = module;
-    if (riskLevel) filters.riskLevel = riskLevel as any;
+    if (module && module !== "all") filters.module = module;
+    if (riskLevel && riskLevel !== "all") filters.riskLevel = riskLevel as any;
     if (startDate) filters.startDate = startDate.toISOString();
     if (endDate) filters.endDate = endDate.toISOString();
     
@@ -91,7 +91,7 @@ const AuditTrailSettings: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Audit Trail");
     
     // Generate filename with current date
-    const filename = `audit-trail-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+    const filename = `audit-trail-${format(new Date(), "yyyy-MM-dd")}.xlsx";
     
     // Generate download
     XLSX.writeFile(wb, filename);
@@ -102,14 +102,10 @@ const AuditTrailSettings: React.FC = () => {
   // Get risk level badge
   const getRiskLevelBadge = (level: string) => {
     switch (level) {
-      case "high":
-        return <Badge variant="destructive">HIGH</Badge>;
-      case "medium":
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800">MEDIUM</Badge>;
-      case "low":
-        return <Badge variant="outline" className="bg-green-100 text-green-800">LOW</Badge>;
-      default:
-        return <Badge variant="outline">UNKNOWN</Badge>;
+      case 'high': return <Badge variant="destructive">HIGH</Badge>;
+      case 'medium': return <Badge variant="outline" className="bg-amber-100 text-amber-800">MEDIUM</Badge>;
+      case 'low': return <Badge variant="outline" className="bg-green-100 text-green-800">LOW</Badge>;
+      default: return <Badge variant="outline">UNKNOWN</Badge>;
     }
   };
 
@@ -149,7 +145,7 @@ const AuditTrailSettings: React.FC = () => {
                 <SelectValue placeholder="Select module" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Modules</SelectItem>
+                <SelectItem value="all">All Modules</SelectItem>
                 {modules.map((mod) => (
                   <SelectItem key={mod} value={mod}>{mod}</SelectItem>
                 ))}
@@ -163,7 +159,7 @@ const AuditTrailSettings: React.FC = () => {
                 <SelectValue placeholder="Risk level" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Levels</SelectItem>
+                <SelectItem value="all">All Levels</SelectItem>
                 <SelectItem value="high">High</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
