@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ComplianceChart from "@/components/analytics/ComplianceChart";
 import { Transaction } from "@/components/dashboard/TransactionTable";
-import { ComplianceAnalysis } from "@/services/analyticsService";
+import { ComplianceAnalysis, DataDiscrepancy } from "@/services/analyticsService";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Check, Clock, FileWarning } from "lucide-react";
 import DataDiscrepancyTable from "@/components/analytics/DataDiscrepancyTable";
@@ -12,9 +12,14 @@ import DataDiscrepancyTable from "@/components/analytics/DataDiscrepancyTable";
 interface DataComplianceAnalyticsProps {
   analysis: ComplianceAnalysis;
   userRole?: string;
+  onDiscrepancyUpdate?: (updatedDiscrepancy: DataDiscrepancy) => void;
 }
 
-const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analysis, userRole = "regulator" }) => {
+const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ 
+  analysis, 
+  userRole = "regulator",
+  onDiscrepancyUpdate 
+}) => {
   // Format chart data
   const chartData = {
     barData: analysis.complianceByBank,
@@ -131,7 +136,11 @@ const DataComplianceAnalytics: React.FC<DataComplianceAnalyticsProps> = ({ analy
           
           {analysis.dataDiscrepancies && analysis.dataDiscrepancies.length > 0 && (
             <TabsContent value="discrepancies">
-              <DataDiscrepancyTable discrepancies={analysis.dataDiscrepancies} userRole={userRole} />
+              <DataDiscrepancyTable 
+                discrepancies={analysis.dataDiscrepancies} 
+                userRole={userRole} 
+                onUpdateDiscrepancy={onDiscrepancyUpdate}
+              />
             </TabsContent>
           )}
         </Tabs>

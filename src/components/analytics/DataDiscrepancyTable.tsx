@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Table,
@@ -231,7 +232,9 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
   const handleDiscrepancyUpdate = (updatedDiscrepancy: DataDiscrepancy) => {
     // Update local state with the updated discrepancy
     const updatedDiscrepancies = filteredDiscrepancies.map(d => 
-      d === updatedDiscrepancy.customsTransaction?.id && d === updatedDiscrepancy.financialTransaction?.id
+      // Fix the problematic comparison here - compare IDs instead of the full objects
+      (d.customsTransaction?.id === updatedDiscrepancy.customsTransaction?.id && 
+       d.financialTransaction?.id === updatedDiscrepancy.financialTransaction?.id)
         ? updatedDiscrepancy
         : d
     );
