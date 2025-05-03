@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Table,
@@ -452,7 +451,7 @@ const DataDiscrepancyTable: React.FC<DataDiscrepancyTableProps> = ({
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="high">High (90%+)</SelectItem>
               <SelectItem value="medium">Medium (70-90%)</SelectItem>
-              <SelectItem value="low">Low (<70%)</SelectItem>
+              <SelectItem value="low">Low (&lt;70%)</SelectItem>
             </SelectContent>
           </Select>
         </div>
