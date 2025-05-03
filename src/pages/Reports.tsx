@@ -25,6 +25,9 @@ type Transaction = {
   bank: string;
   reason: string;
   severity: "high" | "medium" | "low";
+  status?: string;
+  source?: string;
+  flagReason?: string; // Add flagReason property
 };
 
 // Mock data - ideally replace with actual data fetching logic
@@ -60,7 +63,8 @@ const mockComplianceAnalysis = {
       product: "Computer Equipment",
       bank: "First National Bank",
       reason: "Value discrepancy between customs and financial declaration",
-      severity: "high" as "high"
+      severity: "high" as "high",
+      flagReason: "Value discrepancy between customs and financial declaration"
     },
     {
       id: "2",
@@ -72,7 +76,8 @@ const mockComplianceAnalysis = {
       product: "Automotive Parts",
       bank: "Commerce Bank",
       reason: "Multiple smaller transactions on the same day totaling EUR 45,000",
-      severity: "medium" as "medium"
+      severity: "medium" as "medium",
+      flagReason: "Multiple smaller transactions on the same day totaling EUR 45,000"
     }
   ] as Transaction[], // Type assertion to Transaction array
   dataDiscrepancies: [], 
@@ -136,7 +141,7 @@ const Reports: React.FC = () => {
         "Product": tx.product,
         "Bank": tx.bank,
         "Type": tx.type,
-        "Reason Flagged": tx.flagReason
+        "Reason Flagged": tx.flagReason || tx.reason
       }));
       
       const flaggedWS = XLSX.utils.json_to_sheet(flaggedData);
@@ -225,7 +230,7 @@ const Reports: React.FC = () => {
       tx.product,
       tx.bank,
       tx.type,
-      tx.flagReason
+      tx.flagReason || tx.reason
     ]);
     
     // Add table to document

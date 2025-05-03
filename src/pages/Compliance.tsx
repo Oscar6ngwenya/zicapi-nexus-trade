@@ -213,7 +213,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: transaction.severity as "high" | "medium" | "low",
+      severity: transaction.severity,
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 
