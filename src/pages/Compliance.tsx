@@ -206,8 +206,14 @@ const Compliance: React.FC = () => {
 
     // Ensure severity is one of the allowed values
     let severity: "high" | "medium" | "low";
-    if (transaction.severity === "high" || transaction.severity === "medium" || transaction.severity === "low") {
-      severity = transaction.severity;
+    
+    // Explicitly check transaction severity and ensure it matches one of our allowed values
+    if (transaction.severity === "high") {
+      severity = "high";
+    } else if (transaction.severity === "medium") {
+      severity = "medium";
+    } else if (transaction.severity === "low") {
+      severity = "low";
     } else {
       // Default to medium if the value is not one of the expected ones
       severity = "medium";
@@ -222,7 +228,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: severity, // Use the properly typed severity
+      severity: severity, // Now properly typed
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 

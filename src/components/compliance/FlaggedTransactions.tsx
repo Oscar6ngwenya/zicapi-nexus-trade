@@ -16,7 +16,7 @@ export interface FlaggedTransaction {
   bank: string;
   product: string;
   reason: string;
-  severity: "high" | "medium" | "low";  // Ensuring this is properly typed
+  severity: "high" | "medium" | "low";
 }
 
 interface FlaggedTransactionsProps {
