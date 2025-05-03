@@ -125,6 +125,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, userName, onLogout }) => {
           roles: ["admin"],
         },
         {
+          name: "Audit Trail",
+          path: "/audit-trail",
+          icon: <FileText className="h-5 w-5" />,
+          roles: ["admin", "regulator"],
+        },
+        {
           name: "Financial Institutions",
           path: "/financial-institutions",
           icon: <Building className="h-5 w-5" />,

@@ -2,12 +2,15 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, FileText, AlertTriangle, User } from "lucide-react";
+import { Settings as SettingsIcon, FileText, AlertTriangle, User, History } from "lucide-react";
 import AuditTrailSettings from "@/components/settings/AuditTrailSettings";
 import { createAuditLog, AuditActions, AuditModules } from "@/services/auditService";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState("audit");
+  const navigate = useNavigate();
   
   // Log tab changes for auditing purposes
   const handleTabChange = (tab: string) => {
@@ -30,13 +33,26 @@ const Settings: React.FC = () => {
     );
   };
 
+  const navigateToAuditTrail = () => {
+    navigate("/audit-trail");
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zicapi-primary">System Settings</h1>
-        <p className="text-muted-foreground">
-          Configure system-wide settings and view audit information
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-zicapi-primary">System Settings</h1>
+          <p className="text-muted-foreground">
+            Configure system-wide settings and view audit information
+          </p>
+        </div>
+        <Button 
+          onClick={navigateToAuditTrail} 
+          className="flex items-center gap-2"
+        >
+          <History className="h-4 w-4" />
+          View Full Audit Trail
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">

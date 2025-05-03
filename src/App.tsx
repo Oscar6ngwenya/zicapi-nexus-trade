@@ -56,6 +56,8 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } 
                 />
+                
+                {/* Make audit trail accessible to both admin and regulator users */}
                 <Route 
                   path="/audit-trail" 
                   element={
@@ -65,7 +67,7 @@ const App: React.FC = () => {
                   } 
                 />
                 
-                {/* Add the Settings route */}
+                {/* Settings route */}
                 <Route path="/settings" element={<Settings />} />
               </Route>
               

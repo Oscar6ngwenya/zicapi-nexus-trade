@@ -91,14 +91,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           name: user.name,
         }));
         
-        // Create audit log for successful login with enhanced data
+        // Create detailed audit log for successful login with enhanced data
         createAuditLog(
           user.id,
           user.username,
           user.role,
           AuditActions.LOGIN,
           AuditModules.AUTH,
-          `User logged in successfully as ${user.role}`,
+          `User logged in successfully as ${user.role} from ${navigator.platform}`,
           {
             isLoginAttempt: true,
             loginSuccess: true,
