@@ -16,13 +16,15 @@ interface DatePickerProps {
   setDate: (date: Date | undefined) => void;
   className?: string;
   placeholder?: string;
+  fromDate?: Date | undefined;
 }
 
 export function DatePicker({ 
   date, 
   setDate, 
   className,
-  placeholder = "Pick a date" 
+  placeholder = "Pick a date",
+  fromDate
 }: DatePickerProps) {
   return (
     <Popover>
@@ -45,7 +47,11 @@ export function DatePicker({
           selected={date}
           onSelect={setDate}
           initialFocus
-          disabled={(date) => date < new Date("2000-01-01")}
+          disabled={(date) => 
+            (date < new Date("2000-01-01")) || 
+            (fromDate ? date < fromDate : false)
+          }
+          className={cn("p-3 pointer-events-auto")}
         />
       </PopoverContent>
     </Popover>

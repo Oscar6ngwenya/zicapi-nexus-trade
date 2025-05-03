@@ -13,6 +13,20 @@ import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Define the type for flagged transactions to match the expected Transaction type
+type Transaction = {
+  id: string;
+  entity: string;
+  date: string;
+  amount: number;
+  currency: string;
+  type: "import" | "export"; // Ensure type is strictly "import" or "export"
+  product: string;
+  bank: string;
+  reason: string;
+  severity: "high" | "medium" | "low";
+};
+
 // Mock data - ideally replace with actual data fetching logic
 const mockComplianceAnalysis = {
   compliantCount: 72,
@@ -42,10 +56,11 @@ const mockComplianceAnalysis = {
       date: "2023-05-15",
       amount: 85000,
       currency: "USD",
-      type: "import",
+      type: "import" as "import", // Type assertion to match the expected type
       product: "Computer Equipment",
       bank: "First National Bank",
-      flagReason: "Value discrepancy between customs and financial declaration"
+      reason: "Value discrepancy between customs and financial declaration",
+      severity: "high" as "high"
     },
     {
       id: "2",
@@ -53,12 +68,13 @@ const mockComplianceAnalysis = {
       date: "2023-05-18",
       amount: 45000,
       currency: "EUR",
-      type: "import",
+      type: "import" as "import", // Type assertion to match the expected type
       product: "Automotive Parts",
       bank: "Commerce Bank",
-      flagReason: "Multiple smaller transactions on the same day totaling EUR 45,000"
+      reason: "Multiple smaller transactions on the same day totaling EUR 45,000",
+      severity: "medium" as "medium"
     }
-  ],
+  ] as Transaction[], // Type assertion to Transaction array
   dataDiscrepancies: [], 
 };
 

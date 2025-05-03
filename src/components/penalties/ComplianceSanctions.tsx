@@ -287,7 +287,7 @@ const ComplianceSanctions: React.FC = () => {
                       <DatePicker 
                         date={formData.expiryDate} 
                         setDate={handleExpiryDateChange} 
-                        fromDate={formData.sanctionDate ? new Date(formData.sanctionDate) : undefined}
+                        fromDate={formData.sanctionDate}
                       />
                     </div>
                     

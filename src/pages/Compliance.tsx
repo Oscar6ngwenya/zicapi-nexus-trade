@@ -204,7 +204,7 @@ const Compliance: React.FC = () => {
       return;
     }
 
-    // Create new investigation
+    // Create new investigation with proper type for severity
     const newInvestigation: Investigation = {
       id: `inv-${Date.now()}`,
       company: transaction.entity,
@@ -213,7 +213,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: transaction.severity,
+      severity: transaction.severity as "high" | "medium" | "low",
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 
