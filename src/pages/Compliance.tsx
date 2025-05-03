@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -166,8 +167,8 @@ const Compliance: React.FC = () => {
         severity = "medium";
       }
       
-      // Create investigation object
-      const investigation = {
+      // Create investigation object with explicitly typed status
+      const investigation: Investigation = {
         id: `inv-${Date.now()}`,
         transactionId: transaction.id,
         entity: transaction.entity,
@@ -176,9 +177,9 @@ const Compliance: React.FC = () => {
         currency: transaction.currency,
         type: transaction.type,
         reason: transaction.reason,
-        status: "pending",
+        status: "pending", // Explicitly use a valid literal value from the union type
         assignedTo: "Unassigned",
-        severity: severity as "high" | "medium" | "low", // Explicitly cast to ensure proper typing
+        severity: severity,
         lastUpdated: format(new Date(), "yyyy-MM-dd"),
       };
       
@@ -187,6 +188,7 @@ const Compliance: React.FC = () => {
       localStorage.setItem("zicapi-investigations", JSON.stringify(existingInvestigations));
       
       // Update UI with new investigation
+      setInvestigations(prev => [...prev, investigation]);
       setIsModalOpen(true);
       setSelectedInvestigation(investigation);
     }, 1500);
@@ -207,7 +209,7 @@ const Compliance: React.FC = () => {
     if (!selectedInvestigation) return;
     
     // Update investigation
-    const updatedInvestigation = {
+    const updatedInvestigation: Investigation = {
       ...selectedInvestigation,
       notes,
       resolution,
