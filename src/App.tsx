@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,6 +17,7 @@ import AuditTrail from "./pages/AuditTrail";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +64,9 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } 
                 />
+                
+                {/* Add the Settings route */}
+                <Route path="/settings" element={<Settings />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />

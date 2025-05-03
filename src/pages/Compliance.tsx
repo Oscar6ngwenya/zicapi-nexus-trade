@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import InvestigationGenerator from "@/components/compliance/InvestigationGenerator";
+import { createAuditLog, AuditActions, AuditModules, RiskLevels } from "@/services/auditService";
+import { useNavigate } from "react-router-dom";
 
 interface Investigation {
   id: string;
@@ -185,6 +187,9 @@ const Compliance: React.FC = () => {
     ],
   };
 
+  const navigate = useNavigate();
+  const [selectedTransaction, setSelectedTransaction] = useState<FlaggedTransaction | null>(null);
+
   // Handle starting a new investigation
   const handleStartInvestigation = (transaction: FlaggedTransaction) => {
     // Check if company is already under investigation
@@ -214,10 +219,30 @@ const Compliance: React.FC = () => {
 
     // Add to investigations list
     setInvestigations(prev => [newInvestigation, ...prev]);
+    
+    // Set selected transaction for PDF generation
+    setSelectedTransaction(transaction);
+    
+    // Create audit log entry
+    createAuditLog(
+      "user123", // In a real app, this would come from the auth context
+      "John Doe", // In a real app, this would come from the auth context
+      "Compliance Officer",
+      AuditActions.DATA_CREATE,
+      AuditModules.COMPLIANCE,
+      `Started investigation for ${transaction.entity} due to compliance concerns`,
+      { riskLevel: RiskLevels.MEDIUM }
+    );
 
     toast.success("Investigation initiated", {
       description: `A new investigation has been started for ${transaction.entity}`,
     });
+    
+    // Trigger PDF generation after a short delay to ensure UI updates first
+    setTimeout(() => {
+      const pdfButton = document.getElementById("generate-investigation-pdf");
+      if (pdfButton) pdfButton.click();
+    }, 500);
   };
 
   // Handle viewing investigation details
@@ -265,6 +290,9 @@ const Compliance: React.FC = () => {
             transactions={flaggedTransactions} 
             onInvestigate={handleStartInvestigation} 
           />
+          {selectedTransaction && (
+            <InvestigationGenerator transaction={selectedTransaction} />
+          )}
         </TabsContent>
         
         <TabsContent value="investigations" className="space-y-4">

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { AlertTriangle, CheckCircle, Ban, File } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { format } from "date-fns";
 
 // Mock sanctioned companies data
 const INITIAL_SANCTIONS = [
@@ -93,6 +93,13 @@ const ComplianceSanctions: React.FC = () => {
 
   const handleSanctionDateChange = (date: Date | undefined) => {
     setFormData({ ...formData, sanctionDate: date });
+    
+    // If we have a new sanction date and no expiry date yet, set a default expiry date (3 months later)
+    if (date && !formData.expiryDate) {
+      const expiryDate = new Date(date);
+      expiryDate.setMonth(expiryDate.getMonth() + 3);
+      setFormData(prev => ({ ...prev, sanctionDate: date, expiryDate }));
+    }
   };
 
   const handleExpiryDateChange = (date: Date | undefined) => {
@@ -107,13 +114,19 @@ const ComplianceSanctions: React.FC = () => {
       return;
     }
 
+    // Validate that expiry date is after sanction date
+    if (formData.expiryDate && formData.sanctionDate && formData.expiryDate < formData.sanctionDate) {
+      toast.error("Expiry date must be after sanction date");
+      return;
+    }
+
     // Create new sanction
     const newSanction = {
       id: `S${Math.floor(Math.random() * 900) + 100}`,
       companyName: formData.companyName,
       registrationNumber: formData.registrationNumber,
-      sanctionDate: formData.sanctionDate.toISOString().split('T')[0],
-      expiryDate: formData.expiryDate.toISOString().split('T')[0],
+      sanctionDate: format(formData.sanctionDate, "yyyy-MM-dd"),
+      expiryDate: format(formData.expiryDate, "yyyy-MM-dd"),
       reason: formData.reason,
       status: "active",
       sanctionLevel: formData.sanctionLevel,
@@ -274,6 +287,7 @@ const ComplianceSanctions: React.FC = () => {
                       <DatePicker 
                         date={formData.expiryDate} 
                         setDate={handleExpiryDateChange} 
+                        fromDate={formData.sanctionDate ? new Date(formData.sanctionDate) : undefined}
                       />
                     </div>
                     
