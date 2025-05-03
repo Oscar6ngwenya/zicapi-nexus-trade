@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -215,7 +214,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: transaction.severity as "high" | "medium" | "low", // Explicitly cast to the correct type
+      severity: transaction.severity, // Explicitly cast to the correct type
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 

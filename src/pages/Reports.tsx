@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,7 @@ import autoTable from "jspdf-autotable";
 import { Transaction as DashboardTransaction } from "@/components/dashboard/TransactionTable";
 
 // Define a compatible transaction type that matches what's expected in ComplianceAnalysis
-type Transaction = {
+interface Transaction extends Omit<DashboardTransaction, 'source'> {
   id: string;
   entity: string;
   date: string;
@@ -26,7 +27,7 @@ type Transaction = {
   reason: string;
   severity: "high" | "medium" | "low";
   status?: "pending" | "compliant" | "flagged" | "initiated";
-  source?: string;
+  source?: "customs" | "financial" | "manual";
   flagReason?: string;
 };
 
@@ -64,7 +65,8 @@ const mockComplianceAnalysis = {
       bank: "First National Bank",
       reason: "Value discrepancy between customs and financial declaration",
       severity: "high" as "high",
-      status: "flagged" as "flagged", // Add proper status
+      status: "flagged" as "flagged",
+      source: "customs" as "customs",
       flagReason: "Value discrepancy between customs and financial declaration"
     },
     {
@@ -78,10 +80,11 @@ const mockComplianceAnalysis = {
       bank: "Commerce Bank",
       reason: "Multiple smaller transactions on the same day totaling EUR 45,000",
       severity: "medium" as "medium",
-      status: "flagged" as "flagged", // Add proper status
+      status: "flagged" as "flagged",
+      source: "financial" as "financial",
       flagReason: "Multiple smaller transactions on the same day totaling EUR 45,000"
     }
-  ] as Transaction[], // Type assertion to Transaction array
+  ] as Transaction[], 
   dataDiscrepancies: [], 
 };
 
