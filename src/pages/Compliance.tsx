@@ -204,8 +204,16 @@ const Compliance: React.FC = () => {
       return;
     }
 
+    // Ensure severity is one of the allowed values
+    let severity: "high" | "medium" | "low";
+    if (transaction.severity === "high" || transaction.severity === "medium" || transaction.severity === "low") {
+      severity = transaction.severity;
+    } else {
+      // Default to medium if the value is not one of the expected ones
+      severity = "medium";
+    }
+
     // Create new investigation with proper type for severity
-    // Ensure transaction.severity is of the correct type with type assertion
     const newInvestigation: Investigation = {
       id: `inv-${Date.now()}`,
       company: transaction.entity,
@@ -214,7 +222,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: transaction.severity, // Explicitly cast to the correct type
+      severity: severity, // Use the properly typed severity
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 
