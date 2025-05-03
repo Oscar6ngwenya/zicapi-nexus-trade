@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,22 +11,23 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Transaction as DashboardTransaction } from "@/components/dashboard/TransactionTable";
 
-// Define the type for flagged transactions to match the expected Transaction type
+// Define a compatible transaction type that matches what's expected in ComplianceAnalysis
 type Transaction = {
   id: string;
   entity: string;
   date: string;
   amount: number;
   currency: string;
-  type: "import" | "export"; // Ensure type is strictly "import" or "export"
+  type: "import" | "export"; 
   product: string;
   bank: string;
   reason: string;
   severity: "high" | "medium" | "low";
-  status?: string;
+  status?: "pending" | "compliant" | "flagged" | "initiated";
   source?: string;
-  flagReason?: string; // Add flagReason property
+  flagReason?: string;
 };
 
 // Mock data - ideally replace with actual data fetching logic
@@ -59,11 +59,12 @@ const mockComplianceAnalysis = {
       date: "2023-05-15",
       amount: 85000,
       currency: "USD",
-      type: "import" as "import", // Type assertion to match the expected type
+      type: "import" as "import", 
       product: "Computer Equipment",
       bank: "First National Bank",
       reason: "Value discrepancy between customs and financial declaration",
       severity: "high" as "high",
+      status: "flagged" as "flagged", // Add proper status
       flagReason: "Value discrepancy between customs and financial declaration"
     },
     {
@@ -72,11 +73,12 @@ const mockComplianceAnalysis = {
       date: "2023-05-18",
       amount: 45000,
       currency: "EUR",
-      type: "import" as "import", // Type assertion to match the expected type
+      type: "import" as "import", 
       product: "Automotive Parts",
       bank: "Commerce Bank",
       reason: "Multiple smaller transactions on the same day totaling EUR 45,000",
       severity: "medium" as "medium",
+      status: "flagged" as "flagged", // Add proper status
       flagReason: "Multiple smaller transactions on the same day totaling EUR 45,000"
     }
   ] as Transaction[], // Type assertion to Transaction array

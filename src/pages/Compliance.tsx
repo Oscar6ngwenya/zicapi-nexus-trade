@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -205,6 +206,7 @@ const Compliance: React.FC = () => {
     }
 
     // Create new investigation with proper type for severity
+    // Ensure transaction.severity is of the correct type with type assertion
     const newInvestigation: Investigation = {
       id: `inv-${Date.now()}`,
       company: transaction.entity,
@@ -213,7 +215,7 @@ const Compliance: React.FC = () => {
       reason: transaction.reason,
       status: "pending",
       assignedTo: "Unassigned",
-      severity: transaction.severity,
+      severity: transaction.severity as "high" | "medium" | "low", // Explicitly cast to the correct type
       lastUpdated: format(new Date(), "yyyy-MM-dd"),
     };
 

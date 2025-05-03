@@ -114,7 +114,8 @@ const InvestigationGenerator: React.FC<InvestigationGeneratorProps> = ({ transac
     });
     
     // Add footer with page number
-    const pageCount = doc.internal.getNumberOfPages();
+    // Fix for getNumberOfPages issue - use internal.pages length instead
+    const pageCount = doc.internal.pages.length - 1; // -1 because first page is at index 0
     for(let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(10);
