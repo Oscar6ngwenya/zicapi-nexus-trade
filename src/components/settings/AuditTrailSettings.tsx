@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -91,7 +92,7 @@ const AuditTrailSettings: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Audit Trail");
     
     // Generate filename with current date
-    const filename = `audit-trail-${format(new Date(), "yyyy-MM-dd")}.xlsx";
+    const filename = `audit-trail-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
     
     // Generate download
     XLSX.writeFile(wb, filename);
