@@ -18,6 +18,7 @@ import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import ResearchPoster from "./components/research/ResearchPoster";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App: React.FC = () => {
                 
                 {/* Settings route */}
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/poster" element={<ResearchPoster />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />
